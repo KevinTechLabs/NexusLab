@@ -18,6 +18,7 @@ Configure with environment variables (see /etc/nexuslab-agent.env):
   NEXUSLAB_WOL          on | off  switch Wake-on-LAN on for the wired network card at startup (default: on)
 """
 
+import contextlib
 import json
 import os
 import platform
@@ -127,10 +128,8 @@ def gpus():
             gpu["power_limit_w"] = round(pynvml.nvmlDeviceGetEnforcedPowerLimit(h) / 1000)
         except pynvml.NVMLError:
             pass
-        try:
+        with contextlib.suppress(pynvml.NVMLError):
             gpu["fan"] = pynvml.nvmlDeviceGetFanSpeed(h)
-        except pynvml.NVMLError:
-            pass
         out.append(gpu)
     return out
 
@@ -179,10 +178,8 @@ def arm_wol():
     iface = default_iface()
     sup, cur = ethtool_wol(iface)
     if sup and "g" in sup and (not cur or "g" not in cur):
-        try:
+        with contextlib.suppress(OSError, subprocess.SubprocessError):
             subprocess.run(["ethtool", "-s", iface, "wol", "g"], capture_output=True, timeout=5)
-        except (OSError, subprocess.SubprocessError):
-            pass
 
 
 _net = {"at": 0.0, "val": None}
@@ -205,10 +202,8 @@ def net_info():
     return _net["val"]
 
 
-try:
+with contextlib.suppress(Exception):
     arm_wol()
-except Exception:
-    pass
 
 
 # ---------------------------------------------------------------- metrics
@@ -262,7 +257,7 @@ def docker_client():
         try:
             _docker = docker.from_env()
         except Exception as e:
-            raise HTTPException(status_code=503, detail=f"Can't reach Docker: {e}")
+            raise HTTPException(status_code=503, detail=f"Can't reach Docker: {e}") from e
     return _docker
 
 
@@ -274,7 +269,7 @@ def _get_container(name):
     try:
         return docker_client().containers.get(name)
     except docker.errors.NotFound:
-        raise HTTPException(status_code=404, detail=f"No container named {name}")
+        raise HTTPException(status_code=404, detail=f"No container named {name}") from None
 
 
 def _stats(c):
@@ -396,7 +391,7 @@ def ollama_info():
         tags = _ollama("/api/tags").get("models", [])
         ps = _ollama("/api/ps").get("models", [])
     except Exception as e:
-        raise HTTPException(status_code=503, detail=f"Ollama didn't answer: {e}")
+        raise HTTPException(status_code=503, detail=f"Ollama didn't answer: {e}") from e
     installed = sorted(
         ({"name": m.get("name"), "size": m.get("size"), **_details(m)} for m in tags), key=lambda m: m["name"] or ""
     )
@@ -437,14 +432,13 @@ def ollama_chat(body: ChatBody):
         resp = urllib.request.urlopen(req, timeout=300)
     except urllib.error.HTTPError as e:
         detail = e.read().decode("utf-8", errors="replace")[:300]
-        raise HTTPException(status_code=502, detail=f"Ollama refused the chat: {detail}")
+        raise HTTPException(status_code=502, detail=f"Ollama refused the chat: {detail}") from e
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Ollama didn't answer: {e}")
+        raise HTTPException(status_code=502, detail=f"Ollama didn't answer: {e}") from e
 
     def lines():
         with resp:
-            for line in resp:
-                yield line
+            yield from resp
 
     return StreamingResponse(lines(), media_type="application/x-ndjson")
 
@@ -467,9 +461,11 @@ def ollama_action(action: str, body: ModelBody):
         try:
             _ollama("/api/embed", {**payload, "input": "ok"}, timeout=180)
         except Exception:
-            raise HTTPException(status_code=502, detail=f"Ollama refused to {action} {body.model}: HTTP {e.code}")
+            raise HTTPException(
+                status_code=502, detail=f"Ollama refused to {action} {body.model}: HTTP {e.code}"
+            ) from None
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Ollama didn't answer: {e}")
+        raise HTTPException(status_code=502, detail=f"Ollama didn't answer: {e}") from e
     return {"model": body.model, "action": action}
 
 

@@ -2,6 +2,11 @@
   <img src="hub/static/icons/logo-full.png" alt="NexusLab" width="220">
 </p>
 
+<p align="center">
+  <a href="https://github.com/KevinTechLabs/NexusLab/actions/workflows/ci.yml"><img src="https://github.com/KevinTechLabs/NexusLab/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
+</p>
+
 <p align="center"><b>Your homelab, in your hands.</b><br>
 A self-hosted dashboard for monitoring and controlling the machines in a homelab, from any browser or as an app on your phone.</p>
 
@@ -101,7 +106,17 @@ hub/            Runs once, in Docker
   static/               dashboard, login page, icons
   config.example.yaml   copy to config.yaml
 docs/           Guides and screenshots
+tests/          pytest suite for the hub and the agent (no real devices needed)
 ```
+
+## Tests
+
+```bash
+pip install -r hub/requirements.txt -r agent/requirements.txt pytest
+pytest
+```
+
+CI runs them with ruff, bandit and shellcheck on every push and pull request.
 
 ## License
 
