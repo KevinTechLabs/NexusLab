@@ -3,6 +3,7 @@ NexusLab hub — polls every agent and Pi-hole, keeps short history,
 serves the dashboard, proxies container actions/logs, handles login
 and sends Discord alerts.
 """
+
 import asyncio
 import hashlib
 import hmac
@@ -139,9 +140,11 @@ class Device:
     def public(self):
         error = self.error
         if self.power_action and not self.online:
-            error = {"reboot": "Rebooting (started from the dashboard)",
-                     "shutdown": "Turned off on purpose",
-                     "wake": "Starting up (Start sent from the dashboard)"}[self.power_action[0]]
+            error = {
+                "reboot": "Rebooting (started from the dashboard)",
+                "shutdown": "Turned off on purpose",
+                "wake": "Starting up (Start sent from the dashboard)",
+            }[self.power_action[0]]
         return {
             "id": self.id,
             "name": self.name,
@@ -158,7 +161,10 @@ class Device:
                 "wake": self.can_wake,
             },
             "power_pending": self.power_action[0] if self.power_action else None,
-            "wol": {"supported": self.learned.get("wol"), "armed": ((self.metrics or {}).get("net") or {}).get("wol_armed")},
+            "wol": {
+                "supported": self.learned.get("wol"),
+                "armed": ((self.metrics or {}).get("net") or {}).get("wol_armed"),
+            },
             "metrics": self.metrics,
             "history": list(self.history),
             "containers": self.containers,
@@ -186,8 +192,12 @@ def load_state():
 
 
 def save_state():
-    data = {"learned": {d.id: d.learned for d in DEVICES.values() if d.learned},
-            "off": {d.id: d.power_action[1] for d in DEVICES.values() if d.power_action and d.power_action[0] == "shutdown"}}
+    data = {
+        "learned": {d.id: d.learned for d in DEVICES.values() if d.learned},
+        "off": {
+            d.id: d.power_action[1] for d in DEVICES.values() if d.power_action and d.power_action[0] == "shutdown"
+        },
+    }
     try:
         DATA_FILE.parent.mkdir(exist_ok=True)
         tmp = DATA_FILE.with_suffix(".tmp")
@@ -214,6 +224,8 @@ def send_magic_packet(d):
         for target in targets:
             for port in (9, 7):
                 sock.sendto(packet, (target, port))
+
+
 http: httpx.AsyncClient = None  # set in lifespan
 
 
@@ -262,8 +274,19 @@ class DailyStats:
         self.events = []  # (time, title)
 
     def record(self, d):
-        s = self.dev.setdefault(d.id, {"samples": 0, "online": 0, "cpu_sum": 0.0, "cpu_n": 0, "cpu_temp": None,
-                                        "gpu_temp": None, "gpu_util": None, "ram_peak": None})
+        s = self.dev.setdefault(
+            d.id,
+            {
+                "samples": 0,
+                "online": 0,
+                "cpu_sum": 0.0,
+                "cpu_n": 0,
+                "cpu_temp": None,
+                "gpu_temp": None,
+                "gpu_util": None,
+                "ram_peak": None,
+            },
+        )
         s["samples"] += 1
         if not d.online or not d.metrics:
             return
@@ -308,13 +331,15 @@ class Alerter:
             return
         payload = {
             "username": "NexusLab",
-            "embeds": [{
-                "title": title,
-                "description": description,
-                "color": color,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                **({"fields": fields} if fields else {}),
-            }],
+            "embeds": [
+                {
+                    "title": title,
+                    "description": description,
+                    "color": color,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    **({"fields": fields} if fields else {}),
+                }
+            ],
         }
         for _ in range(3):
             try:
@@ -339,7 +364,9 @@ class Alerter:
             if pa and d.online and (now - pa[1] > 20 or pa[0] == "wake"):
                 if d.power_seen_offline:
                     if pa[0] == "reboot":
-                        await self.send(f"🟢 {d.name} is back up after the reboot", f"Offline for about {_dur(now - pa[1])}.", GREEN)
+                        await self.send(
+                            f"🟢 {d.name} is back up after the reboot", f"Offline for about {_dur(now - pa[1])}.", GREEN
+                        )
                     elif pa[0] == "wake":
                         await self.send(f"🟢 {d.name} is on", f"It took about {_dur(now - pa[1])} to start.", GREEN)
                     else:
@@ -351,9 +378,12 @@ class Alerter:
                     d.power_action = pa = None  # it never went down; stop waiting
                     save_state()
             if pa and pa[0] == "wake" and not d.online and now - pa[1] > 180:
-                await self.send(f"⚠️ {d.name} didn't turn on",
-                                "No answer 3 minutes after Start. Check that it's plugged in, on Ethernet, and that "
-                                "Wake on LAN is enabled in its BIOS.", AMBER)
+                await self.send(
+                    f"⚠️ {d.name} didn't turn on",
+                    "No answer 3 minutes after Start. Check that it's plugged in, on Ethernet, and that "
+                    "Wake on LAN is enabled in its BIOS.",
+                    AMBER,
+                )
                 d.power_action = pa = ("shutdown", now)
                 save_state()
             if pa and not d.online and (pa[0] in ("shutdown", "wake") or now - pa[1] < 600):
@@ -362,11 +392,16 @@ class Alerter:
                 s["since"] = s["since"] or now
                 if not s["alerted"] and now - s["since"] >= self.offline_after:
                     s["alerted"] = True
-                    await self.send(f"🔴 {d.name} is offline",
-                                    f"No answer from its agent for {_dur(now - s['since'])}.\nLast error: {d.error or 'unknown'}", RED)
+                    await self.send(
+                        f"🔴 {d.name} is offline",
+                        f"No answer from its agent for {_dur(now - s['since'])}.\nLast error: {d.error or 'unknown'}",
+                        RED,
+                    )
             else:
                 if s["alerted"]:
-                    await self.send(f"🟢 {d.name} is back online", f"It was unreachable for about {_dur(now - s['since'])}.", GREEN)
+                    await self.send(
+                        f"🟢 {d.name} is back online", f"It was unreachable for about {_dur(now - s['since'])}.", GREEN
+                    )
                 s.update(since=None, alerted=False)
 
         if not d.online or not d.metrics or not self.enabled["high_temp"]:
@@ -386,8 +421,11 @@ class Alerter:
             s["since"] = s["since"] or now
             if not s["alerted"] and now - s["since"] >= self.sustain:
                 s["alerted"] = True
-                await self.send(f"🔥 {d.name}: {label} is running hot",
-                                f"{label} is at **{temp:.0f} °C**, above the {limit:.0f} °C alert level for over {_dur(self.sustain)}.", AMBER)
+                await self.send(
+                    f"🔥 {d.name}: {label} is running hot",
+                    f"{label} is at **{temp:.0f} °C**, above the {limit:.0f} °C alert level for over {_dur(self.sustain)}.",
+                    AMBER,
+                )
         elif temp <= limit - 5:
             if s["alerted"]:
                 await self.send(f"✅ {d.name}: {label} has cooled down", f"{label} is back to {temp:.0f} °C.", GREEN)
@@ -415,8 +453,9 @@ class Alerter:
                 if now - d.recent_actions.get(name, 0) < 120:
                     continue  # stopped or restarted from the dashboard
                 alerted.add(name)
-                await self.send(f"⚠️ {d.name}: {name} stopped",
-                                f"Container **{name}** is now {now_status or 'removed'}.", RED)
+                await self.send(
+                    f"⚠️ {d.name}: {name} stopped", f"Container **{name}** is now {now_status or 'removed'}.", RED
+                )
             elif now_status == "running" and name in alerted:
                 alerted.discard(name)
                 await self.send(f"✅ {d.name}: {name} is running again", f"Container **{name}** is back up.", GREEN)
@@ -466,7 +505,11 @@ def build_summary():
     else:
         fields.append({"name": "Events", "value": "No problems ✅", "inline": False})
     hours = (now - STATS.since) / 3600
-    span = "the last 24 hours" if hours >= 23 else f"the last {hours:.1f} hours (since the hub started {_local(STATS.since, '%a %-I:%M %p')})"
+    span = (
+        "the last 24 hours"
+        if hours >= 23
+        else f"the last {hours:.1f} hours (since the hub started {_local(STATS.since, '%a %-I:%M %p')})"
+    )
     return f"Covering {span}.", fields
 
 
@@ -483,7 +526,7 @@ async def summary_loop():
     try:
         hh, mm = (int(x) for x in SUMMARY_AT.split(":"))
     except ValueError:
-        print(f"[nexuslab] alerts.daily_summary should look like \"08:00\", got {SUMMARY_AT!r}", flush=True)
+        print(f'[nexuslab] alerts.daily_summary should look like "08:00", got {SUMMARY_AT!r}', flush=True)
         return
     now = datetime.now(TZ)
     last = now.date() if (now.hour, now.minute) >= (hh, mm) else None
@@ -506,8 +549,12 @@ async def poll_metrics(d: Device):
         m = r.json()
         d.metrics, d.online, d.error, d.last_seen = m, True, None, time.time()
         net = m.get("net") or {}
-        learned = {"mac": net.get("mac"), "wired": bool(net.get("wired")),
-                   "wol": net.get("wol_supported") if net.get("ethtool") else None, "power": bool(m.get("power"))}
+        learned = {
+            "mac": net.get("mac"),
+            "wired": bool(net.get("wired")),
+            "wol": net.get("wol_supported") if net.get("ethtool") else None,
+            "power": bool(m.get("power")),
+        }
         if net.get("mac") and learned != d.learned:
             d.learned = learned
             save_state()
@@ -540,7 +587,11 @@ async def poll_ollama(d: Device):
         r.raise_for_status()
         d.ollama_state = {"ok": True, **r.json()}
     except Exception as e:
-        d.ollama_state = {"ok": False, "error": _err(e), **{k: (d.ollama_state or {}).get(k) for k in ("version", "installed", "loaded")}}
+        d.ollama_state = {
+            "ok": False,
+            "error": _err(e),
+            **{k: (d.ollama_state or {}).get(k) for k in ("version", "installed", "loaded")},
+        }
 
 
 async def metrics_loop():
@@ -572,11 +623,20 @@ async def lifespan(app):
     http = httpx.AsyncClient()
     print(f"[nexuslab] Login {'on' if AUTH_PASS else 'OFF (set auth.password in config.yaml)'}", flush=True)
     print(f"[nexuslab] Discord alerts {'on' if ALERTER.active else 'off (no alerts.discord_webhook)'}", flush=True)
-    print(f"[nexuslab] Daily summary {('at ' + SUMMARY_AT + ' ' + str(TZ)) if SUMMARY_AT and ALERTER.active else 'off'}", flush=True)
-    tasks = [asyncio.create_task(metrics_loop()), asyncio.create_task(containers_loop()), asyncio.create_task(summary_loop())]
+    print(
+        f"[nexuslab] Daily summary {('at ' + SUMMARY_AT + ' ' + str(TZ)) if SUMMARY_AT and ALERTER.active else 'off'}",
+        flush=True,
+    )
+    tasks = [
+        asyncio.create_task(metrics_loop()),
+        asyncio.create_task(containers_loop()),
+        asyncio.create_task(summary_loop()),
+    ]
     if ALERTER.active and ALERTER.message_on_start:
         names = ", ".join(d.name for d in DEVICES.values())
-        tasks.append(asyncio.create_task(ALERTER.send("NexusLab is running", f"Watching {names}. Alerts are connected.", BLUE)))
+        tasks.append(
+            asyncio.create_task(ALERTER.send("NexusLab is running", f"Watching {names}. Alerts are connected.", BLUE))
+        )
     yield
     for t in tasks:
         t.cancel()
@@ -637,8 +697,11 @@ async def login(request: Request):
     except Exception:
         body = {}
     user, pw = str(body.get("username", "")), str(body.get("password", ""))
-    if AUTH_PASS and secrets.compare_digest(user.encode(), AUTH_USER.encode()) \
-            and secrets.compare_digest(pw.encode(), AUTH_PASS.encode()):
+    if (
+        AUTH_PASS
+        and secrets.compare_digest(user.encode(), AUTH_USER.encode())
+        and secrets.compare_digest(pw.encode(), AUTH_PASS.encode())
+    ):
         FAILED.pop(ip, None)
         resp = JSONResponse({"ok": True})
         resp.set_cookie(COOKIE, make_session(), max_age=SESSION_DAYS * 86400, httponly=True, samesite="lax")
@@ -663,19 +726,32 @@ async def index():
 
 @app.get("/manifest.webmanifest")
 async def manifest():
-    return JSONResponse({
-        "name": "NexusLab",
-        "short_name": "NexusLab",
-        "start_url": "/",
-        "scope": "/",
-        "display": "standalone",
-        "background_color": "#10151E",
-        "theme_color": "#10151E",
-        "icons": [
-            {"src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
-            {"src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"},
-        ],
-    }, media_type="application/manifest+json")
+    return JSONResponse(
+        {
+            "name": "NexusLab",
+            "short_name": "NexusLab",
+            "start_url": "/",
+            "scope": "/",
+            "display": "standalone",
+            "background_color": "#10151E",
+            "theme_color": "#10151E",
+            "icons": [
+                {
+                    "src": "/static/icons/icon-192.png",
+                    "sizes": "192x192",
+                    "type": "image/png",
+                    "purpose": "any maskable",
+                },
+                {
+                    "src": "/static/icons/icon-512.png",
+                    "sizes": "512x512",
+                    "type": "image/png",
+                    "purpose": "any maskable",
+                },
+            ],
+        },
+        media_type="application/manifest+json",
+    )
 
 
 @app.get("/favicon.ico")
@@ -726,7 +802,10 @@ async def power_action(dev_id: str, action: str):
         if d.online:
             raise HTTPException(409, f"{d.name} is already on")
         if not d.mac:
-            raise HTTPException(400, f"NexusLab hasn't learned {d.name}'s network address yet. Turn it on once by hand with the updated agent.")
+            raise HTTPException(
+                400,
+                f"NexusLab hasn't learned {d.name}'s network address yet. Turn it on once by hand with the updated agent.",
+            )
         try:
             for _ in range(3):
                 send_magic_packet(d)
@@ -736,7 +815,12 @@ async def power_action(dev_id: str, action: str):
         d.power_action = ("wake", time.time())
         d.power_seen_offline = True
         save_state()
-        await ALERTER.send(f"⚡ Starting {d.name}", "Started from the NexusLab dashboard. It usually takes 20 to 60 seconds.", BLUE, log=True)
+        await ALERTER.send(
+            f"⚡ Starting {d.name}",
+            "Started from the NexusLab dashboard. It usually takes 20 to 60 seconds.",
+            BLUE,
+            log=True,
+        )
         return {"action": "on", "sent": True}
     if not d.caps["power"]:
         raise HTTPException(403, f"Power control isn't enabled on {d.name}. Update its agent first.")
@@ -752,7 +836,12 @@ async def power_action(dev_id: str, action: str):
     if action == "reboot":
         await ALERTER.send(f"🔁 {d.name} is rebooting", "Started from the NexusLab dashboard.", BLUE, log=True)
     else:
-        await ALERTER.send(f"⏻ {d.name} was shut down", "Started from the NexusLab dashboard. It stays off until you power it on.", BLUE, log=True)
+        await ALERTER.send(
+            f"⏻ {d.name} was shut down",
+            "Started from the NexusLab dashboard. It stays off until you power it on.",
+            BLUE,
+            log=True,
+        )
     return r.json()
 
 
@@ -765,7 +854,7 @@ async def ollama_action(dev_id: str, action: str, request: Request):
         body = await request.json()
         model = str(body["model"])
     except Exception:
-        raise HTTPException(400, "Send {\"model\": \"name\"}")
+        raise HTTPException(400, 'Send {"model": "name"}')
     try:
         r = await http.post(f"{d.url}/ollama/{action}", headers=d.headers, json={"model": model}, timeout=200)
         r.raise_for_status()
@@ -782,7 +871,7 @@ NUM_CTX = int(CHAT_CFG.get("num_ctx", 8192))
 
 
 def _gb(b):
-    return "?" if b is None else f"{b / 1024 ** 3:.1f} GB"
+    return "?" if b is None else f"{b / 1024**3:.1f} GB"
 
 
 def status_text():
@@ -794,8 +883,10 @@ def status_text():
             seen = f", last seen {_local(d.last_seen, '%a %-I:%M %p')}" if d.last_seen else ""
             pa = d.power_action[0] if d.power_action else None
             if pa == "shutdown":
-                out.append(f"\n## {d.name}: OFF ON PURPOSE ({WHO} shut it down; this is normal, not a problem{seen}). "
-                           + ("It can be turned on with the Start button in NexusLab." if d.can_wake else ""))
+                out.append(
+                    f"\n## {d.name}: OFF ON PURPOSE ({WHO} shut it down; this is normal, not a problem{seen}). "
+                    + ("It can be turned on with the Start button in NexusLab." if d.can_wake else "")
+                )
             elif pa in ("reboot", "wake"):
                 out.append(f"\n## {d.name}: STARTING UP ({'rebooting' if pa == 'reboot' else 'Start was just sent'})")
             else:
@@ -811,7 +902,9 @@ def status_text():
         out.append(f"- SSD {_gb(k.get('used'))} of {_gb(k.get('total'))} used ({k.get('percent', 0):.0f}%){dt}")
         for g in m.get("gpus") or []:
             pw = f", {g['power_w']:.0f} W of {g['power_limit_w']} W" if g.get("power_w") is not None else ""
-            out.append(f"- GPU {g['name']}: {g['util']}% load, VRAM {_gb(g['mem_used'])} of {_gb(g['mem_total'])}, {g['temp_c']} °C{pw}")
+            out.append(
+                f"- GPU {g['name']}: {g['util']}% load, VRAM {_gb(g['mem_used'])} of {_gb(g['mem_total'])}, {g['temp_c']} °C{pw}"
+            )
         cs = d.containers
         if cs and cs.get("items"):
             mode = "can be controlled from NexusLab" if d.docker == "control" else "view only"
@@ -819,20 +912,24 @@ def status_text():
             for i in cs["items"]:
                 extra = ""
                 if i["status"] == "running" and i.get("mem_used") is not None:
-                    extra = f", CPU {i.get('cpu_percent') or 0:.1f}%, memory {i['mem_used'] / 1024 ** 2:.0f} MB"
+                    extra = f", CPU {i.get('cpu_percent') or 0:.1f}%, memory {i['mem_used'] / 1024**2:.0f} MB"
                 health = f", {i['health']}" if i.get("health") else ""
                 out.append(f"  - {i['name']} ({i['image']}): {i['status']}{health}{extra}")
         p = d.pihole_state
         if p and p.get("ok"):
-            out.append(f"- Pi-hole (last 24 h): blocking {p.get('blocking') or 'unknown'}, {p.get('blocked', 0):,} of "
-                       f"{p.get('total', 0):,} queries blocked ({p.get('percent') or 0:.1f}%), "
-                       f"{p.get('domains', 0):,} domains on blocklist, {p.get('clients')} active clients")
+            out.append(
+                f"- Pi-hole (last 24 h): blocking {p.get('blocking') or 'unknown'}, {p.get('blocked', 0):,} of "
+                f"{p.get('total', 0):,} queries blocked ({p.get('percent') or 0:.1f}%), "
+                f"{p.get('domains', 0):,} domains on blocklist, {p.get('clients')} active clients"
+            )
         elif p:
             out.append(f"- Pi-hole: not answering ({p.get('error')})")
         o = d.ollama_state
         if o and o.get("ok"):
             loaded = ", ".join(f"{x['name']} ({_gb(x.get('vram'))} VRAM)" for x in o.get("loaded") or []) or "none"
-            out.append(f"- Ollama {o.get('version')}: loaded models: {loaded}; {len(o.get('installed') or [])} installed")
+            out.append(
+                f"- Ollama {o.get('version')}: loaded models: {loaded}; {len(o.get('installed') or [])} installed"
+            )
     recent = [(t, title) for t, title in STATS.events if time.time() - t < 86400]
     if recent:
         out.append("\n## Alerts in the last 24 hours")
@@ -883,22 +980,33 @@ async def chat(request: Request):
         raise HTTPException(503, "No machine with Ollama is online right now.")
     if not model:
         raise HTTPException(503, "Ollama has no chat models installed.")
-    history = [{"role": m["role"], "content": str(m.get("content", ""))[:8000]}
-               for m in (body.get("messages") or []) if isinstance(m, dict) and m.get("role") in ("user", "assistant")][-16:]
+    history = [
+        {"role": m["role"], "content": str(m.get("content", ""))[:8000]}
+        for m in (body.get("messages") or [])
+        if isinstance(m, dict) and m.get("role") in ("user", "assistant")
+    ][-16:]
     if not history or history[-1]["role"] != "user":
         raise HTTPException(400, "Send a message first.")
     payload = {
         "model": model,
-        "messages": [{"role": "system", "content": SYSTEM_PROMPT.format(
-            status=status_text(), who=WHO, whose=f"{OWNER}'s" if OWNER else "the user's")}] + history,
+        "messages": [
+            {
+                "role": "system",
+                "content": SYSTEM_PROMPT.format(
+                    status=status_text(), who=WHO, whose=f"{OWNER}'s" if OWNER else "the user's"
+                ),
+            }
+        ]
+        + history,
         "options": {"num_ctx": NUM_CTX},
     }
 
     async def stream():
         yield json.dumps({"model": model}) + "\n"
         try:
-            async with http.stream("POST", f"{d.url}/ollama/chat", headers=d.headers, json=payload,
-                                   timeout=httpx.Timeout(300, connect=5)) as r:
+            async with http.stream(
+                "POST", f"{d.url}/ollama/chat", headers=d.headers, json=payload, timeout=httpx.Timeout(300, connect=5)
+            ) as r:
                 if r.status_code >= 400:
                     raw = await r.aread()
                     try:

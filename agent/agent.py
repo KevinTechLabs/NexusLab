@@ -17,6 +17,7 @@ Configure with environment variables (see /etc/nexuslab-agent.env):
   NEXUSLAB_OLLAMA_URL   Ollama address to report on (default: http://127.0.0.1:11434, "off" to disable)
   NEXUSLAB_WOL          on | off  switch Wake-on-LAN on for the wired network card at startup (default: on)
 """
+
 import json
 import os
 import platform
@@ -305,16 +306,18 @@ def containers():
     for c in sorted(items, key=lambda c: c.name):
         state = c.attrs.get("State", {})
         cpu, mem, limit = stats.get(c.id, (None, None, None))
-        out.append({
-            "name": c.name,
-            "image": c.attrs.get("Config", {}).get("Image", ""),
-            "status": c.status,
-            "health": (state.get("Health") or {}).get("Status"),
-            "started_at": state.get("StartedAt"),
-            "cpu_percent": cpu,
-            "mem_used": mem,
-            "mem_limit": limit,
-        })
+        out.append(
+            {
+                "name": c.name,
+                "image": c.attrs.get("Config", {}).get("Image", ""),
+                "status": c.status,
+                "health": (state.get("Health") or {}).get("Status"),
+                "started_at": state.get("StartedAt"),
+                "cpu_percent": cpu,
+                "mem_used": mem,
+                "mem_limit": limit,
+            }
+        )
     return {"mode": DOCKER_MODE, "items": out}
 
 
@@ -357,8 +360,9 @@ _ollama_seen = {"at": 0.0, "ok": False}
 
 def _ollama(path, body=None, timeout=5):
     data = json.dumps(body).encode() if body is not None else None
-    req = urllib.request.Request(OLLAMA_URL + path, data=data, method="POST" if data else "GET",
-                                 headers={"Content-Type": "application/json"})
+    req = urllib.request.Request(
+        OLLAMA_URL + path, data=data, method="POST" if data else "GET", headers={"Content-Type": "application/json"}
+    )
     with urllib.request.urlopen(req, timeout=timeout) as r:
         raw = r.read()
     return json.loads(raw) if raw.strip() else {}
@@ -393,9 +397,19 @@ def ollama_info():
         ps = _ollama("/api/ps").get("models", [])
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Ollama didn't answer: {e}")
-    installed = sorted(({"name": m.get("name"), "size": m.get("size"), **_details(m)} for m in tags), key=lambda m: m["name"] or "")
-    loaded = [{"name": m.get("name"), "size": m.get("size"), "vram": m.get("size_vram"),
-               "expires_at": m.get("expires_at"), **_details(m)} for m in ps]
+    installed = sorted(
+        ({"name": m.get("name"), "size": m.get("size"), **_details(m)} for m in tags), key=lambda m: m["name"] or ""
+    )
+    loaded = [
+        {
+            "name": m.get("name"),
+            "size": m.get("size"),
+            "vram": m.get("size_vram"),
+            "expires_at": m.get("expires_at"),
+            **_details(m),
+        }
+        for m in ps
+    ]
     return {"version": version, "installed": installed, "loaded": loaded}
 
 
@@ -413,8 +427,12 @@ def ollama_chat(body: ChatBody):
     payload = {"model": body.model, "messages": body.messages, "stream": True}
     if body.options:
         payload["options"] = body.options
-    req = urllib.request.Request(OLLAMA_URL + "/api/chat", data=json.dumps(payload).encode(),
-                                 headers={"Content-Type": "application/json"}, method="POST")
+    req = urllib.request.Request(
+        OLLAMA_URL + "/api/chat",
+        data=json.dumps(payload).encode(),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
     try:
         resp = urllib.request.urlopen(req, timeout=300)
     except urllib.error.HTTPError as e:
