@@ -1,0 +1,32 @@
+# Tool configuration only. Runtime dependencies stay in hub/requirements.txt
+# and agent/requirements.txt.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+
+[tool.ruff]
+line-length = 120
+# The agent supports Python 3.9+ (see README); the hub image is 3.12.
+target-version = "py39"
+
+[tool.ruff.lint]
+# Same rule set as Personal-CI-CD.
+select = ["E", "F", "W", "I", "B", "UP", "S", "BLE", "SIM"]
+ignore = [
+    "E501",   # long f-string messages; the formatter owns code line length
+    "B008",   # FastAPI's Depends()/Query() in defaults is idiomatic
+    "BLE001", # pollers and alerting must survive any single device/API failure
+    "S110",   # ...same reason (best-effort extras such as Pi-hole blocking state)
+    "S603",   # subprocess is only called with fixed argv lists (ethtool, systemctl)
+    "S607",   # ...resolved from PATH on purpose
+    "S310",   # urlopen only talks to the configured Ollama URL
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106"]
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+# B404/B603/B607: see S603/S607 above. B110: see S110 above. B310: see S310 above.
+skips = ["B404", "B603", "B607", "B110", "B310"]
