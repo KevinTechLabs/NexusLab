@@ -14,8 +14,8 @@ import secrets
 import socket
 import time
 from collections import defaultdict, deque
-from contextlib import asynccontextmanager
-from datetime import datetime, timedelta, timezone
+from contextlib import asynccontextmanager, suppress
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
@@ -85,10 +85,8 @@ class PiHole:
         d = await self._get("/api/stats/summary")
         q = d.get("queries", {})
         blocking = None
-        try:
+        with suppress(Exception):
             blocking = (await self._get("/api/dns/blocking")).get("blocking")
-        except Exception:
-            pass
         return {
             "total": q.get("total"),
             "blocked": q.get("blocked"),
@@ -262,6 +260,11 @@ except Exception:
 SUMMARY_AT = str(ALERT_CFG.get("daily_summary", "08:00") or "").strip()  # "" turns it off
 
 
+def _max(a, b):
+    """max() that treats None as "no reading yet"."""
+    return b if a is None else (a if b is None else max(a, b))
+
+
 class DailyStats:
     """What happened since the last daily summary."""
 
@@ -294,12 +297,11 @@ class DailyStats:
         m = d.metrics
         s["cpu_sum"] += m["cpu"]["percent"]
         s["cpu_n"] += 1
-        hi = lambda a, b: b if a is None else (a if b is None else max(a, b))
-        s["cpu_temp"] = hi(s["cpu_temp"], m["cpu"].get("temp_c"))
-        s["ram_peak"] = hi(s["ram_peak"], m["ram"]["percent"])
+        s["cpu_temp"] = _max(s["cpu_temp"], m["cpu"].get("temp_c"))
+        s["ram_peak"] = _max(s["ram_peak"], m["ram"]["percent"])
         for g in m.get("gpus") or []:
-            s["gpu_temp"] = hi(s["gpu_temp"], g.get("temp_c"))
-            s["gpu_util"] = hi(s["gpu_util"], g.get("util"))
+            s["gpu_temp"] = _max(s["gpu_temp"], g.get("temp_c"))
+            s["gpu_util"] = _max(s["gpu_util"], g.get("util"))
 
     def event(self, title):
         self.events.append((time.time(), title))
@@ -788,7 +790,7 @@ async def container_action(dev_id: str, name: str, action: str):
         r.raise_for_status()
     except Exception as e:
         code = e.response.status_code if isinstance(e, httpx.HTTPStatusError) else 502
-        raise HTTPException(code, _err(e))
+        raise HTTPException(code, _err(e)) from e
     await poll_containers(d)
     return r.json()
 
@@ -811,7 +813,7 @@ async def power_action(dev_id: str, action: str):
                 send_magic_packet(d)
                 await asyncio.sleep(0.3)
         except Exception as e:
-            raise HTTPException(500, f"Couldn't send the Start signal: {e}")
+            raise HTTPException(500, f"Couldn't send the Start signal: {e}") from e
         d.power_action = ("wake", time.time())
         d.power_seen_offline = True
         save_state()
@@ -829,7 +831,7 @@ async def power_action(dev_id: str, action: str):
         r.raise_for_status()
     except Exception as e:
         code = e.response.status_code if isinstance(e, httpx.HTTPStatusError) else 502
-        raise HTTPException(code, _err(e))
+        raise HTTPException(code, _err(e)) from e
     d.power_action = (action, time.time())
     d.power_seen_offline = False
     save_state()
@@ -854,13 +856,13 @@ async def ollama_action(dev_id: str, action: str, request: Request):
         body = await request.json()
         model = str(body["model"])
     except Exception:
-        raise HTTPException(400, 'Send {"model": "name"}')
+        raise HTTPException(400, 'Send {"model": "name"}') from None
     try:
         r = await http.post(f"{d.url}/ollama/{action}", headers=d.headers, json={"model": model}, timeout=200)
         r.raise_for_status()
     except Exception as e:
         code = e.response.status_code if isinstance(e, httpx.HTTPStatusError) else 502
-        raise HTTPException(code, _err(e))
+        raise HTTPException(code, _err(e)) from e
     await poll_ollama(d)
     return r.json()
 
@@ -1040,7 +1042,7 @@ async def container_logs(dev_id: str, name: str, tail: int = Query(200, ge=10, l
         r.raise_for_status()
     except Exception as e:
         code = e.response.status_code if isinstance(e, httpx.HTTPStatusError) else 502
-        raise HTTPException(code, _err(e))
+        raise HTTPException(code, _err(e)) from e
     return PlainTextResponse(r.text)
 
 
