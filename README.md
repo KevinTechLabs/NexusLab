@@ -6,6 +6,13 @@
 A self-hosted dashboard for monitoring and controlling the machines in a homelab, from any browser or as an app on your phone.</p>
 
 <p align="center">
+  <a href="https://github.com/KevinTechLabs/NexusLab/actions/workflows/ci.yml"><img src="https://github.com/KevinTechLabs/NexusLab/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <img src="https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue" alt="Python 3.11 | 3.12 | 3.13">
+  <img src="https://img.shields.io/badge/coverage-%E2%89%A580%25-brightgreen" alt="Coverage gate 80%">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license"></a>
+</p>
+
+<p align="center">
   <img src="docs/screenshots/mobile.png" alt="NexusLab on a phone: dashboard, chat and login" width="100%">
 </p>
 
@@ -87,8 +94,24 @@ To try the interface without any hardware, open `hub/static/index.html?demo` thr
 
 - Keep ports **8484** (hub) and **9101** (agents) on your home network. Don't forward them on your router; use Tailscale, WireGuard or similar to reach NexusLab from outside.
 - Always set `auth.password`. The dashboard can stop containers and shut down machines.
-- Agents refuse any request without their token. Container control is enforced by each agent itself, so a `monitor` machine can't be controlled even if the hub is misconfigured.
+- Agents refuse any request without their token, and an agent with no token configured refuses everything except `/health` rather than running open. Container control is enforced by each agent itself, so a `monitor` machine can't be controlled even if the hub is misconfigured.
+- Container names are checked against Docker's naming rules on both the hub and the agent before anything is forwarded, and the Ollama address must be `http://` or `https://`.
+- The session cookie is `HttpOnly` and `SameSite=Lax`, and also `Secure` when the hub is reached over HTTPS (directly or behind a reverse proxy that sets `X-Forwarded-Proto`). Eight wrong passwords from one address lock it out for 5 minutes.
 - `config.yaml` and `hub/data/` hold your secrets and are excluded by `.gitignore`. Never commit them.
+
+## Development
+
+Every push and pull request runs [CI](.github/workflows/ci.yml): **ruff** and **shellcheck**, **bandit** and **pip-audit**, the test suite on Python 3.11 to 3.13 with an 80% coverage gate, then a Docker build of the hub that must pass its own health check and a smoke test.
+
+The tests fake every outside system (Docker, NVIDIA, Ollama, Pi-hole, Discord, other agents), so they run anywhere without a homelab:
+
+```bash
+python -m venv .venv && . .venv/bin/activate
+pip install -r requirements-dev.txt
+pytest --cov            # tests + coverage
+ruff check .            # lint
+bandit -c pyproject.toml -r agent hub -ll
+```
 
 ## Project layout
 
@@ -101,6 +124,7 @@ hub/            Runs once, in Docker
   static/               dashboard, login page, icons
   config.example.yaml   copy to config.yaml
 docs/           Guides and screenshots
+tests/          pytest suites for the agent and the hub
 ```
 
 ## License

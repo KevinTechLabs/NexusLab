@@ -14,7 +14,7 @@ import socket
 import time
 from collections import defaultdict, deque
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
@@ -169,7 +169,7 @@ class Device:
 
 DEVICES = {d["id"]: Device(d) for d in CFG["devices"]}
 
-DATA_FILE = HERE / "data" / "state.json"
+DATA_FILE = Path(os.environ.get("NEXUSLAB_DATA_DIR", HERE / "data")) / "state.json"
 
 
 def load_state():
@@ -600,7 +600,7 @@ def valid_session(value):
     return hmac.compare_digest(sig, good) and int(exp) > time.time()
 
 
-PUBLIC_PATHS = {"/login", "/api/login", "/logout", "/manifest.webmanifest", "/favicon.ico", "/apple-touch-icon.png"}
+PUBLIC_PATHS = {"/login", "/api/login", "/logout", "/healthz", "/manifest.webmanifest", "/favicon.ico", "/apple-touch-icon.png"}
 
 
 @app.middleware("http")
@@ -616,6 +616,18 @@ async def require_login(request: Request, call_next):
 
 
 FAILED = defaultdict(list)
+FAILED_WINDOW = 300
+FAILED_LIMIT = 8
+
+
+def _prune_failed(now):
+    """Drop expired attempts so the map can't grow without bound."""
+    for ip in [ip for ip, times in FAILED.items() if not times or now - times[-1] >= FAILED_WINDOW]:
+        del FAILED[ip]
+
+
+def _is_https(request: Request):
+    return request.url.scheme == "https" or request.headers.get("x-forwarded-proto", "").lower() == "https"
 
 
 @app.get("/login")
@@ -629,8 +641,9 @@ async def login_page(request: Request):
 async def login(request: Request):
     ip = request.client.host if request.client else "?"
     now = time.time()
-    FAILED[ip] = [t for t in FAILED[ip] if now - t < 300]
-    if len(FAILED[ip]) >= 8:
+    _prune_failed(now)
+    FAILED[ip] = [t for t in FAILED[ip] if now - t < FAILED_WINDOW]
+    if len(FAILED[ip]) >= FAILED_LIMIT:
         raise HTTPException(429, "Too many attempts. Wait 5 minutes and try again.")
     try:
         body = await request.json()
@@ -641,7 +654,8 @@ async def login(request: Request):
             and secrets.compare_digest(pw.encode(), AUTH_PASS.encode()):
         FAILED.pop(ip, None)
         resp = JSONResponse({"ok": True})
-        resp.set_cookie(COOKIE, make_session(), max_age=SESSION_DAYS * 86400, httponly=True, samesite="lax")
+        resp.set_cookie(COOKIE, make_session(), max_age=SESSION_DAYS * 86400, httponly=True,
+                        samesite="lax", secure=_is_https(request))
         return resp
     FAILED[ip].append(now)
     await asyncio.sleep(1)
@@ -656,6 +670,11 @@ async def logout():
 
 
 # ---------------------------------------------------------------- app shell
+@app.get("/healthz")
+async def healthz():
+    return {"ok": True}
+
+
 @app.get("/")
 async def index():
     return FileResponse(STATIC / "index.html", headers={"Cache-Control": "no-store"})
@@ -700,9 +719,23 @@ def _device(dev_id):
     return d
 
 
+CONTAINER_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")
+
+
+def _container_name(name):
+    # Docker's own naming rule. Also stops names like ".." from being
+    # forwarded into the agent URL as a path segment.
+    if not CONTAINER_NAME.fullmatch(name):
+        raise HTTPException(400, "Invalid container name")
+    return name
+
+
 @app.post("/api/devices/{dev_id}/containers/{name}/{action}")
 async def container_action(dev_id: str, name: str, action: str):
     d = _device(dev_id)
+    _container_name(name)
+    if action not in ("start", "stop", "restart"):
+        raise HTTPException(400, "Action must be start, stop or restart")
     if d.docker != "control":
         raise HTTPException(403, f"{d.name} is monitor-only")
     if action in ("stop", "restart"):
@@ -927,6 +960,7 @@ async def summary_now():
 @app.get("/api/devices/{dev_id}/containers/{name}/logs")
 async def container_logs(dev_id: str, name: str, tail: int = Query(200, ge=10, le=5000)):
     d = _device(dev_id)
+    _container_name(name)
     try:
         r = await http.get(f"{d.url}/containers/{name}/logs", headers=d.headers, params={"tail": tail}, timeout=15)
         r.raise_for_status()
