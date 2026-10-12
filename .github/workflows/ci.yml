@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint (ruff, shellcheck)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "ruff>=0.6"
+      - run: ruff check --output-format=github .
+      - name: shellcheck
+        run: shellcheck agent/install-agent.sh
+
+  security:
+    name: Security (bandit, pip-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "bandit[toml]>=1.7" "pip-audit>=2.7"
+      - name: bandit (medium and high findings fail the build)
+        run: bandit -c pyproject.toml -r agent hub -ll
+      - name: pip-audit (known CVEs in dependencies)
+        run: |
+          pip-audit -r agent/requirements.txt
+          pip-audit -r hub/requirements.txt
+
+  test:
+    name: Tests (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - run: pytest --cov --cov-report=term-missing --cov-fail-under=80
+
+  docker:
+    name: Docker build + smoke test
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build hub image
+        run: docker build -t nexuslab-hub:ci hub
+      - name: Start hub with the example config
+        run: |
+          docker run -d --name hub -p 8484:8484 \
+            -v "$PWD/hub/config.example.yaml:/app/config.yaml:ro" nexuslab-hub:ci
+      - name: Wait for the Docker health check
+        run: |
+          for _ in $(seq 1 30); do
+            status=$(docker inspect -f '{{.State.Health.Status}}' hub)
+            echo "health: $status"
+            [ "$status" = healthy ] && break
+            sleep 2
+          done
+          [ "$status" = healthy ] || { docker logs hub; exit 1; }
+      - name: Smoke test
+        run: |
+          curl -fsS http://127.0.0.1:8484/healthz
+          curl -fsS http://127.0.0.1:8484/ | grep -q '<html'
+          curl -fsS http://127.0.0.1:8484/api/state | python3 -c 'import json,sys; d=json.load(sys.stdin); assert len(d["devices"]) == 4, d'
+      - if: always()
+        run: docker logs hub || true

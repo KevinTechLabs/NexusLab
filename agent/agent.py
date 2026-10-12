@@ -20,6 +20,7 @@ Configure with environment variables (see /etc/nexuslab-agent.env):
 import json
 import os
 import platform
+import re
 import secrets
 import socket
 import subprocess
@@ -42,14 +43,18 @@ DISK_PATH = os.environ.get("NEXUSLAB_DISK_PATH", "/")
 TEMP_SENSOR = os.environ.get("NEXUSLAB_TEMP_SENSOR", "").strip()
 POWER = os.environ.get("NEXUSLAB_POWER", "on").strip().lower() not in ("off", "0", "false", "no")
 OLLAMA_URL = os.environ.get("NEXUSLAB_OLLAMA_URL", "http://127.0.0.1:11434").strip().rstrip("/")
+if not OLLAMA_URL.lower().startswith(("http://", "https://")):
+    OLLAMA_URL = "off"  # only plain HTTP(S) addresses; never file:// or other schemes
 WOL = os.environ.get("NEXUSLAB_WOL", "on").strip().lower() not in ("off", "0", "false", "no")
 
 app = FastAPI(title="NexusLab agent", docs_url=None, redoc_url=None)
 
 
 def require_token(authorization: str = Header(default="")):
+    # Fail closed: an agent with no token configured must not hand out metrics,
+    # container control or power control to anyone who can reach the port.
     if not TOKEN:
-        return
+        raise HTTPException(status_code=503, detail="NEXUSLAB_TOKEN isn't set on this device")
     if not secrets.compare_digest(authorization.encode(), f"Bearer {TOKEN}".encode()):
         raise HTTPException(status_code=401, detail="Invalid or missing token")
 
@@ -265,7 +270,12 @@ def docker_client():
     return _docker
 
 
+CONTAINER_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")
+
+
 def _get_container(name):
+    if not CONTAINER_NAME.fullmatch(name):
+        raise HTTPException(status_code=400, detail="Invalid container name")
     if ALLOWLIST and name not in ALLOWLIST:
         raise HTTPException(status_code=403, detail=f"{name} isn't in NEXUSLAB_CONTAINERS")
     import docker
@@ -300,7 +310,7 @@ def containers():
     if ALLOWLIST:
         items = [c for c in items if c.name in ALLOWLIST]
     running = [c for c in items if c.status == "running"]
-    stats = dict(zip([c.id for c in running], _pool.map(_stats, running)))
+    stats = dict(zip([c.id for c in running], _pool.map(_stats, running), strict=True))
     out = []
     for c in sorted(items, key=lambda c: c.name):
         state = c.attrs.get("State", {})
@@ -357,9 +367,9 @@ _ollama_seen = {"at": 0.0, "ok": False}
 
 def _ollama(path, body=None, timeout=5):
     data = json.dumps(body).encode() if body is not None else None
-    req = urllib.request.Request(OLLAMA_URL + path, data=data, method="POST" if data else "GET",
+    req = urllib.request.Request(OLLAMA_URL + path, data=data,  # nosec B310 - scheme checked at startup method="POST" if data else "GET",
                                  headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
+    with urllib.request.urlopen(req, timeout=timeout) as r:  # nosec B310
         raw = r.read()
     return json.loads(raw) if raw.strip() else {}
 
@@ -413,10 +423,10 @@ def ollama_chat(body: ChatBody):
     payload = {"model": body.model, "messages": body.messages, "stream": True}
     if body.options:
         payload["options"] = body.options
-    req = urllib.request.Request(OLLAMA_URL + "/api/chat", data=json.dumps(payload).encode(),
+    req = urllib.request.Request(OLLAMA_URL + "/api/chat", data=json.dumps(payload).encode(),  # nosec B310
                                  headers={"Content-Type": "application/json"}, method="POST")
     try:
-        resp = urllib.request.urlopen(req, timeout=300)
+        resp = urllib.request.urlopen(req, timeout=300)  # nosec B310 - scheme checked at startup
     except urllib.error.HTTPError as e:
         detail = e.read().decode("utf-8", errors="replace")[:300]
         raise HTTPException(status_code=502, detail=f"Ollama refused the chat: {detail}")

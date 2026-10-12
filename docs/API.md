@@ -10,6 +10,7 @@ When `auth.password` is set, every endpoint except the login and static icons ne
 | `GET` | `/login` | Login page |
 | `POST` | `/api/login` | `{"username", "password"}` → sets the session cookie |
 | `GET` | `/logout` | Signs out |
+| `GET` | `/healthz` | `{"ok": true}`, no login needed (used by the Docker health check) |
 | `GET` | `/api/state` | Everything the dashboard shows: every device's metrics, history, containers, Pi-hole, Ollama and power state |
 | `POST` | `/api/devices/{id}/containers/{name}/{action}` | `start`, `stop` or `restart` a container (device must be `docker: control`) |
 | `GET` | `/api/devices/{id}/containers/{name}/logs?tail=300` | Container logs as plain text |
@@ -21,7 +22,7 @@ When `auth.password` is set, every endpoint except the login and static icons ne
 
 ## Agent (port 9101)
 
-Every endpoint except `/health` needs the header `Authorization: Bearer <token>`.
+Every endpoint except `/health` needs the header `Authorization: Bearer <token>`. If `NEXUSLAB_TOKEN` is empty the agent refuses those requests with `503` instead of serving them unauthenticated.
 
 | Method | Path | Does |
 |---|---|---|
