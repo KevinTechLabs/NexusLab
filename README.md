@@ -18,6 +18,7 @@ A self-hosted dashboard for monitoring and controlling the machines in a homelab
 - **Pi-hole:** queries blocked, share blocked, blocklist size, clients and blocking status (v5 and v6).
 - **Ollama:** loaded models and their VRAM use, plus one-tap Load and Unload.
 - **Chat:** ask your own Ollama models "check status of machines" and get an answer based on live data from every machine.
+- **Power and energy:** watts per machine right now, kWh and cost today and this month, a projection for the month, and a 30-day chart. Estimated from CPU and GPU power sensors, or measured exactly with a Shelly smart plug.
 - **Discord alerts:** machine offline, CPU or GPU running hot, container stopped, plus a daily summary. Recovery messages when problems clear.
 - **Installable app:** custom icon and login screen. Add it to your phone's home screen and it opens like an app.
 

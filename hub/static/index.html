@@ -102,6 +102,43 @@ header{padding:22px 0 14px;display:flex;align-items:center;gap:14px;flex-wrap:wr
 .vbtn{all:unset;cursor:pointer;padding:6px 14px;border-radius:8px;font-size:14px;font-weight:600;color:var(--muted)}
 .vbtn[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent)}
 .vbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* power */
+.pw{display:flex;flex-direction:column;gap:14px}
+.pw-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.pw-head h2{margin:0;font-size:24px;font-weight:700;letter-spacing:-.02em;margin-right:auto}
+.pw-head .aside{color:var(--muted);font-size:13px}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;min-width:0}
+.stat .k{font-size:13px;color:var(--muted);font-weight:500}
+.stat .v{font-size:30px;font-weight:700;letter-spacing:-.03em;line-height:1.15;margin-top:4px}
+.stat .v small{font-size:15px;font-weight:600;color:var(--muted);letter-spacing:0;margin-left:3px}
+.stat .s{font-size:13px;color:var(--muted);margin-top:4px;min-height:1.4em}
+.stat .s strong{color:var(--text);font-weight:600}
+.rate-form{display:flex;gap:6px;align-items:center;margin-top:8px}
+.rate-form input{flex:1;min-width:0;width:80px;background:var(--btn);border:1px solid var(--line);border-radius:9px;padding:6px 8px;font-size:16px}
+.rate-form input:focus{border-color:var(--accent);outline:none}
+.prow{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:4px 12px;align-items:center;padding:11px 0;border-top:1px solid var(--line)}
+.prow:first-child{border-top:0}
+.prow .pn{font-weight:600}
+.prow .pm{font-size:12.5px;color:var(--muted)}
+.prow .pv{text-align:right;font-weight:600;font-size:16px}
+.prow .pv small{display:block;font-size:12px;color:var(--muted);font-weight:400}
+.prow .pbar{grid-column:2/-1;height:6px;border-radius:3px;background:var(--track);overflow:hidden}
+.prow .pbar i{display:block;height:100%;background:var(--accent);border-radius:3px;transition:width .5s}
+.tag{font-size:11.5px;padding:1px 7px;border-radius:10px;background:var(--soft);color:var(--muted);margin-left:6px;font-weight:500;vertical-align:1px}
+.tag.meas{background:var(--accent-soft);color:var(--accent)}
+.dchart{position:relative;overflow:hidden}
+.dchart svg{display:block;width:100%;height:170px}
+.dchart .bar{fill:var(--accent);pointer-events:none}
+.dchart .bar.today{fill:var(--accent);opacity:.55}
+.dchart .hit{fill:transparent;cursor:pointer}
+.dchart .hit:hover+.bar,.dchart .bar.hl{opacity:1;fill:var(--text)}
+.dchart .ax{stroke:var(--line);stroke-width:1}
+.dchart text{fill:var(--muted);font-size:11px}
+.tip{position:absolute;pointer-events:none;background:var(--text);color:var(--card);font-size:12.5px;padding:6px 9px;border-radius:8px;white-space:nowrap;transform:translate(-50%,0);opacity:0;transition:opacity .1s}
+.tip.show{opacity:1}
+.pw-note{font-size:13px;color:var(--muted);margin:0;line-height:1.55}
+@media (max-width:760px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.stat .v{font-size:26px}}
 /* chat */
 .chat{display:flex;flex-direction:column;gap:12px;padding-bottom:8px}
 .chat-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -199,12 +236,27 @@ pre.logs{margin:0;padding:12px 16px;overflow:auto;height:min(65dvh,600px);font:1
       <span id="online-count">Connecting…</span><span id="updated"></span>
       <span id="demo-tag" class="demo-tag" hidden>Demo data</span>
     </div>
-    <nav class="views" aria-label="View"><button class="vbtn" data-view="dash" aria-pressed="true">Dashboard</button><button class="vbtn" data-view="chat" aria-pressed="false">Chat</button></nav>
+    <nav class="views" aria-label="View"><button class="vbtn" data-view="dash" aria-pressed="true">Dashboard</button><button class="vbtn" data-view="power" aria-pressed="false">Power</button><button class="vbtn" data-view="chat" aria-pressed="false">Chat</button></nav>
     <a class="logout" id="logout" href="/logout" hidden>Log out</a>
   </header>
   <div class="banner" id="banner" hidden><p id="banner-text"></p></div>
   <nav class="tabs" id="tabs" role="tablist" aria-label="Devices"></nav>
   <main id="detail"></main>
+  <section id="power" class="pw" hidden aria-label="Power and energy">
+    <div class="pw-head"><h2>Power</h2><span class="aside" id="pw-since"></span></div>
+    <div class="stats">
+      <div class="stat"><div class="k">Drawing now</div><div class="v" id="pw-now">–</div><div class="s" id="pw-now-s"></div></div>
+      <div class="stat"><div class="k">Today</div><div class="v" id="pw-today">–</div><div class="s" id="pw-today-s"></div></div>
+      <div class="stat"><div class="k" id="pw-month-k">This month</div><div class="v" id="pw-month">–</div><div class="s" id="pw-month-s"></div></div>
+      <div class="stat"><div class="k">Rate per kWh</div><div class="v" id="pw-rate">–</div>
+        <form class="rate-form" id="rate-form"><input id="rate-in" type="number" inputmode="decimal" step="0.001" min="0" max="10" aria-label="Rate per kWh" placeholder="0.32"><button class="btn" type="submit">Save</button></form>
+      </div>
+    </div>
+    <section class="card"><div class="sec-head"><h3>By device</h3><span class="aside">right now, today and this month</span></div><div id="pw-devs"></div></section>
+    <section class="card dchart"><div class="sec-head"><h3>Daily use, last 30 days</h3><span class="aside">kWh</span></div>
+      <svg id="pw-chart" role="img" aria-label="Daily energy use for the last 30 days"></svg><div class="tip" id="pw-tip"></div></section>
+    <p class="pw-note"><strong>Estimated</strong> devices are worked out from their CPU and GPU power sensors plus a typical allowance for memory, drives, fans and power-supply losses, so expect them to be within about 15%. Machines that are off count as 0 W. For exact numbers, plug a machine into a Shelly smart plug and add it to <code>config.yaml</code>; it will show as <strong>Measured</strong>.</p>
+  </section>
   <section id="chat" class="chat" hidden aria-label="Chat with NexusLab">
     <div class="chat-head">
       <h2>Ask NexusLab</h2>
@@ -544,6 +596,7 @@ function render(state) {
   }
   renderTabs(state);
   updateChatModels(state);
+  if (view === 'power') renderPower(state.energy);
   const d = state.devices.find(x => x.id === selected);
   if (d) renderDetail(d);
   const on = state.devices.filter(x => x.online).length;
@@ -701,6 +754,29 @@ const demo = DEMO ? (() => {
       {cpu: 12, ram: 35, disk: 52, temp: 49, dtemp: 37}, {gpu: false, docker: 'off', pihole: false, power: true, ollama: false}),
   ];
   const ph = {total: 48213, blocked: 9127, domains: 162847, blocking: 'enabled'};
+  let rate = 0.32;
+  const hist = Array.from({length: 30}, (_, i) => {
+    const day = new Date(Date.now() - (29 - i) * 864e5);
+    return {day: `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`, kwh: i < 9 ? 0 : +(1.7 + Math.random() * 0.9).toFixed(3)};
+  });
+  const demoEnergy = list => {
+    const watts = {minisforum: 14 + Math.random() * 3, nexus: 62 + Math.random() * 40, pi5: 4 + Math.random() * .4, beelink: 11 + Math.random() * 3};
+    const frac = (new Date().getHours() * 60 + new Date().getMinutes()) / 1440;
+    const devices = list.map(d => {
+      const w = d.online ? watts[d.id] : 0, share = {minisforum: .17, nexus: .66, pi5: .05, beelink: .12}[d.id];
+      return {id: d.id, name: d.name, watts: +w.toFixed(1), method: d.online ? 'estimated' : 'off', online: d.online,
+        today_kwh: +(2.1 * frac * share).toFixed(3), month_kwh: +(hist.slice(-new Date().getDate()).reduce((a, h) => a + h.kwh, 0) * share).toFixed(3)};
+    });
+    hist[29].kwh = +(2.1 * frac).toFixed(3);
+    const month = hist.slice(-new Date().getDate()).reduce((a, h) => a + h.kwh, 0);
+    const dim = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+    const proj = month / (new Date().getDate() - 1 + frac) * dim;
+    const c = v => rate ? +(v * rate).toFixed(2) : null;
+    return {rate, currency: '$', watts: +devices.reduce((a, d) => a + d.watts, 0).toFixed(1),
+      today_kwh: hist[29].kwh, today_cost: c(hist[29].kwh), yesterday_kwh: hist[28].kwh, yesterday_cost: c(hist[28].kwh),
+      month_kwh: +month.toFixed(3), month_cost: c(month), month_projected_kwh: +proj.toFixed(1), month_projected_cost: c(proj),
+      month_name: new Date().toLocaleDateString('en-US', {month: 'long'}), tracking_since: hist[9].day, devices, history: hist.map(h => ({...h}))};
+  };
 
   function step(d, t) {
     const c = d.cur, b = d.base;
@@ -718,7 +794,7 @@ const demo = DEMO ? (() => {
       const t = now();
       devs.forEach(d => step(d, t));
       ph.total += Math.round(Math.random() * 18); ph.blocked += Math.round(Math.random() * 4);
-      return {generated: t, devices: devs.map(d => {
+      const out = {generated: t, devices: devs.map(d => {
         const c = d.cur;
         for (const x of d.containers) if (x.status === 'running') x.cpu_percent = Math.max(0, x.cpu_base + (Math.random() - .5) * x.cpu_base);
         return {
@@ -740,7 +816,10 @@ const demo = DEMO ? (() => {
           pihole: d.features.pihole ? {ok: true, total: ph.total, blocked: ph.blocked, percent: ph.blocked / ph.total * 100, domains: ph.domains, clients: 14, blocking: ph.blocking} : null,
         };
       })};
+      out.energy = demoEnergy(out.devices);
+      return out;
     },
+    setRate(r) { rate = r; },
     action(dev, name, act) {
       return new Promise(res => setTimeout(() => {
         const x = devs.find(d => d.id === dev).containers.find(c => c.name === name);
@@ -761,6 +840,112 @@ const demo = DEMO ? (() => {
 })() : null;
 
 
+/* ---------- power */
+const money = (e, v) => v == null ? '' : `${e.currency}${v < 10 ? v.toFixed(2) : v.toLocaleString(undefined, {maximumFractionDigits: 0})}`;
+const kwh = v => v < 10 ? v.toFixed(2) : v < 100 ? v.toFixed(1) : Math.round(v).toLocaleString();
+let rateEditing = false;
+function renderPower(e) {
+  if (!e) return;
+  $('#pw-now').innerHTML = `${Math.round(e.watts)}<small>W</small>`;
+  const on = e.devices.filter(d => d.watts > 0).length;
+  $('#pw-now-s').textContent = `${on} of ${e.devices.length} devices drawing power`;
+  $('#pw-today').innerHTML = `${kwh(e.today_kwh)}<small>kWh</small>`;
+  $('#pw-today-s').innerHTML = e.rate ? `<strong>${money(e, e.today_cost)}</strong> so far` : 'Set a rate to see cost';
+  $('#pw-month-k').textContent = `${e.month_name} so far`;
+  $('#pw-month').innerHTML = `${kwh(e.month_kwh)}<small>kWh</small>`;
+  $('#pw-month-s').innerHTML = e.rate
+    ? `<strong>${money(e, e.month_cost)}</strong>, on pace for ${money(e, e.month_projected_cost)}`
+    : `On pace for ${kwh(e.month_projected_kwh)} kWh`;
+  $('#pw-rate').innerHTML = e.rate ? `${e.currency}${e.rate.toFixed(3).replace(/0$/, '')}` : '<small style="margin:0">Not set</small>';
+  if (!rateEditing && document.activeElement !== $('#rate-in')) $('#rate-in').value = e.rate || '';
+  const since = new Date(e.tracking_since + 'T12:00:00');
+  $('#pw-since').textContent = `Tracking since ${since.toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}`;
+
+  const max = Math.max(1, ...e.devices.map(d => d.watts));
+  const box = $('#pw-devs');
+  const sig = e.devices.map(d => d.id + d.method).join();
+  if (box._sig !== sig) {
+    box._sig = sig;
+    box.innerHTML = e.devices.map(d => `<div class="prow" data-id="${esc(d.id)}">
+      <span class="dot"></span>
+      <div><span class="pn">${esc(d.name)}</span><span class="tag${d.method === 'measured' ? ' meas' : ''}">${d.method === 'measured' ? 'Measured' : d.method === 'off' ? 'Off' : 'Estimated'}</span>
+        <div class="pm"></div></div>
+      <div class="pv"></div><div class="pbar"><i></i></div></div>`).join('');
+  }
+  for (const d of e.devices) {
+    const row = box.querySelector(`.prow[data-id="${CSS.escape(d.id)}"]`); if (!row) continue;
+    row.querySelector('.dot').className = 'dot ' + (d.watts > 0 ? 'on' : '');
+    row.querySelector('.pm').textContent = `Today ${kwh(d.today_kwh)} kWh${e.rate ? `, ${money(e, d.today_kwh * e.rate)}` : ''}`;
+    row.querySelector('.pv').innerHTML = `${Math.round(d.watts)} W<small>${kwh(d.month_kwh)} kWh this month</small>`;
+    row.querySelector('.pbar i').style.width = `${d.watts / max * 100}%`;
+  }
+  drawDaily(e);
+}
+
+function drawDaily(e) {
+  const svg = $('#pw-chart'), W = svg.clientWidth || 600, H = 170, pad = {l: 34, r: 6, t: 10, b: 22};
+  const days = e.history, n = days.length;
+  const sig = W + JSON.stringify(days) + e.rate;
+  if (svg._sig === sig) return;
+  svg._sig = sig;
+  const top = Math.max(0.5, ...days.map(d => d.kwh));
+  const step = niceStep(top / 3), yMax = Math.ceil(top / step) * step;
+  const bw = (W - pad.l - pad.r) / n, y = v => pad.t + (H - pad.t - pad.b) * (1 - v / yMax);
+  let out = '';
+  for (let v = 0; v <= yMax + 1e-9; v += step) out += `<line class="ax" x1="${pad.l}" x2="${W - pad.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${pad.l - 6}" y="${y(v) + 4}" text-anchor="end">${+v.toFixed(2)}</text>`;
+  days.forEach((d, i) => {
+    const x = pad.l + i * bw + 1, w = Math.max(2, bw - 2), h = Math.max(0, y(0) - y(d.kwh));
+    const r = Math.min(4, w / 2, h);
+    const path = h > 0 ? `M${x},${y(0)} V${y(0) - h + r} q0,-${r} ${r},-${r} H${x + w - r} q${r},0 ${r},${r} V${y(0)} Z` : '';
+    out += `<rect class="hit" data-i="${i}" x="${x - 1}" y="${pad.t}" width="${bw}" height="${H - pad.t - pad.b}"/>`;
+    if (path) out += `<path class="bar${i === n - 1 ? ' today' : ''}" d="${path}"/>`;
+    if (i % 7 === (n - 1) % 7) {
+      const dt = new Date(d.day + 'T12:00:00');
+      out += i === n - 1 ? `<text x="${x + w}" y="${H - 6}" text-anchor="end">Today</text>`
+        : `<text x="${x + w / 2}" y="${H - 6}" text-anchor="middle">${dt.toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}</text>`;
+    }
+  });
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.innerHTML = out;
+  svg._days = days; svg._e = e;
+}
+function niceStep(raw) {
+  const p = Math.pow(10, Math.floor(Math.log10(raw))), m = raw / p;
+  return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p;
+}
+function showTip(ev) {
+  const t = ev.target.closest('.hit'), tip = $('#pw-tip'), svg = $('#pw-chart');
+  svg.querySelectorAll('.bar.hl').forEach(b => b.classList.remove('hl'));
+  if (!t) { tip.classList.remove('show'); return; }
+  const d = svg._days[+t.dataset.i], e = svg._e;
+  const bar = t.nextElementSibling; if (bar?.classList.contains('bar')) bar.classList.add('hl');
+  const dt = new Date(d.day + 'T12:00:00');
+  tip.textContent = `${dt.toLocaleDateString(undefined, {weekday: 'short', month: 'short', day: 'numeric'})}: ${kwh(d.kwh)} kWh${e.rate ? `, ${money(e, d.kwh * e.rate)}` : ''}${+t.dataset.i === svg._days.length - 1 ? ' so far' : ''}`;
+  const r = svg.getBoundingClientRect(), box = t.getBoundingClientRect(), host = svg.parentElement.getBoundingClientRect();
+  const half = tip.offsetWidth / 2 + 8;
+  tip.style.left = Math.min(Math.max(box.left + box.width / 2 - host.left, half), host.width - half) + 'px';
+  tip.style.top = (r.top - host.top + 4) + 'px';
+  tip.classList.add('show');
+}
+$('#pw-chart').addEventListener('pointermove', showTip);
+$('#pw-chart').addEventListener('pointerdown', showTip);
+$('#pw-chart').addEventListener('pointerleave', () => { $('#pw-tip').classList.remove('show'); $('#pw-chart').querySelectorAll('.bar.hl').forEach(b => b.classList.remove('hl')); });
+window.addEventListener('resize', () => { if (view === 'power' && lastState) drawDaily(lastState.energy); });
+
+$('#rate-in').addEventListener('input', () => rateEditing = true);
+$('#rate-form').addEventListener('submit', async ev => {
+  ev.preventDefault();
+  const rate = parseFloat($('#rate-in').value);
+  if (!(rate >= 0 && rate < 10)) { toast('Enter your rate per kWh, like 0.32', true); return; }
+  try {
+    if (DEMO) demo.setRate(rate);
+    else await fetch('/api/energy/rate', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({rate})}).then(jsonOrThrow);
+    rateEditing = false; $('#rate-in').blur();
+    toast(`Saved rate: ${lastState?.energy?.currency || '$'}${rate} per kWh`);
+    render(await api.state());
+  } catch (err) { toast(`Couldn't save the rate: ${err.message}`, true); }
+});
+
 /* ---------- chat */
 const chatLog = $('#chat-log'), chatInput = $('#chat-input'), chatSend = $('#chat-send'), modelSel = $('#chat-model');
 const store = {
@@ -770,12 +955,15 @@ const store = {
 let chat = store.get('nexuslab-chat', []);
 let chatBusy = null;   // AbortController while a reply streams
 
+let view = 'dash';
 function setView(v) {
-  const isChat = v === 'chat';
-  $('#chat').hidden = !isChat;
-  tabs.hidden = isChat; detail.hidden = isChat;
+  view = v;
+  const isChat = v === 'chat', isPower = v === 'power';
+  $('#chat').hidden = !isChat; $('#power').hidden = !isPower;
+  tabs.hidden = v !== 'dash'; detail.hidden = v !== 'dash';
   document.querySelectorAll('.vbtn').forEach(b => b.setAttribute('aria-pressed', b.dataset.view === v));
-  try { history.replaceState(null, '', isChat ? '#chat' : (selected ? '#' + selected : location.pathname)); } catch {}
+  try { history.replaceState(null, '', v !== 'dash' ? '#' + v : (selected ? '#' + selected : location.pathname)); } catch {}
+  if (isPower && lastState) renderPower(lastState.energy);
   if (isChat) { renderChat(); setTimeout(() => chatInput.focus({preventScroll: true}), 50); window.scrollTo(0, document.body.scrollHeight); }
 }
 document.querySelectorAll('.vbtn').forEach(b => b.onclick = () => setView(b.dataset.view));
@@ -905,7 +1093,7 @@ async function demoChat(reply) {
 
 $('#demo-tag').hidden = !DEMO;
 setInterval(tickUpdated, 1000);
-if (location.hash === '#chat') setTimeout(() => setView('chat'), 0);
+if (location.hash === '#chat' || location.hash === '#power') setTimeout(() => setView(location.hash.slice(1)), 0);
 poll();
 })();
 </script>

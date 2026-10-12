@@ -38,6 +38,9 @@ A complete, commented example is in [`hub/config.example.yaml`](../hub/config.ex
 | `mac` | no | MAC address for Start (Wake-on-LAN). Normally learned automatically |
 | `pihole` | no | Pi-hole connection; see below |
 
+| `power_meter` | no | Shelly smart plug for exact power; see below |
+| `power` | no | Tune the power estimate; see below |
+
 #### `pihole`
 
 | Key | Default | Meaning |
@@ -47,6 +50,21 @@ A complete, commented example is in [`hub/config.example.yaml`](../hub/config.ex
 | `password` | | v6 web password or app password |
 | `api_token` | | v5 API token |
 | `verify_tls` | `false` | Check HTTPS certificates |
+
+### `energy` and power per device
+
+| Key | Default | Meaning |
+|---|---|---|
+| `energy.rate_per_kwh` | `0` | Your electricity price per kWh. A rate saved on the Power tab overrides this |
+| `energy.currency` | `$` | Currency symbol |
+| `power_meter.url` | | Address of a Shelly plug (Gen1, Plus or Gen3) the machine is plugged into. Its readings are marked **Measured** |
+| `power_meter.channel` | `0` | Outlet number on multi-outlet Shelly devices |
+| `power_meter.username` / `password` | | Only if the plug has a login |
+| `power.overhead_w` | `6`, or `25` with a GPU | Watts for the parts without a sensor: board, memory, drives, fans |
+| `power.efficiency` | `0.87` | Power supply efficiency |
+| `power.idle_w` / `max_w` | `10` / `45` | Used only when a machine has no power sensor at all: the estimate scales between these with CPU load |
+
+**How estimates work.** The agent reads the CPU's own power counter (RAPL on Intel and AMD) or, on a Raspberry Pi 5, its power chip. NVIDIA GPUs report their own draw. The hub adds `overhead_w` and divides by `efficiency` to get watts at the wall, then adds that up every few seconds into kWh per day, stored in `hub/data/energy.json`. Expect estimates to be within about 15%; a Shelly plug gives exact numbers. Machines that are off count as 0 W, and time while the hub itself is down isn't counted.
 
 ### `alerts`
 

@@ -22,6 +22,7 @@ import os
 import platform
 import re
 import secrets
+import shutil
 import socket
 import subprocess
 import threading
@@ -215,6 +216,70 @@ except Exception:
     pass
 
 
+# ---------------------------------------------------------------- power sensors
+RAPL_BASE = "/sys/class/powercap"
+_rapl_prev = {}
+
+
+def rapl_watts():
+    """CPU package power from RAPL (Intel, and AMD Zen on kernel 5.8+). None until two samples exist."""
+    base = RAPL_BASE
+    try:
+        zones = [z for z in os.listdir(base) if re.fullmatch(r"intel-rapl:\d+", z)]
+    except OSError:
+        return None
+    now, total, have = time.monotonic(), 0.0, False
+    for z in zones:
+        try:
+            with open(f"{base}/{z}/energy_uj") as f:
+                energy = int(f.read())
+            with open(f"{base}/{z}/max_energy_range_uj") as f:
+                rng = int(f.read())
+        except (OSError, ValueError):
+            continue
+        prev = _rapl_prev.get(z)
+        _rapl_prev[z] = (energy, now)
+        if prev:
+            de, dt = energy - prev[0], now - prev[1]
+            if de < 0:
+                de += rng  # counter wrapped
+            if dt > 0.2:
+                total += de / 1e6 / dt
+                have = True
+    return round(total, 1) if have else None
+
+
+_pmic = {"at": 0.0, "val": None}
+PMIC_LINE = re.compile(r"\s*(\S+)_([AV])\s+\w+\(\d+\)=([\d.]+)")
+
+
+def pi_pmic_watts():
+    """Raspberry Pi 5: sum of voltage x current over the PMIC rails."""
+    if not shutil.which("vcgencmd"):
+        return None
+    now = time.time()
+    if now - _pmic["at"] < 5:
+        return _pmic["val"]
+    try:
+        out = subprocess.run(["vcgencmd", "pmic_read_adc"], capture_output=True, text=True, timeout=3).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+    amps, volts = {}, {}
+    for line in out.splitlines():
+        m = PMIC_LINE.match(line)
+        if m:
+            (amps if m.group(2) == "A" else volts)[m.group(1)] = float(m.group(3))
+    total = sum(a * volts[k] for k, a in amps.items() if k in volts)
+    _pmic.update(at=now, val=round(total, 2) if amps else None)
+    return _pmic["val"]
+
+
+def power_estimate():
+    """Raw power sensors; the hub turns these into watts at the wall."""
+    cpu_w = rapl_watts()
+    return {"cpu_w": cpu_w, "soc_w": None if cpu_w is not None else pi_pmic_watts()}
+
+
 # ---------------------------------------------------------------- metrics
 psutil.cpu_percent(None)  # prime the counter so the first reading isn't 0
 
@@ -249,6 +314,7 @@ def metrics():
         "power": POWER,
         "ollama": ollama_available(),
         "net": net_info(),
+        "power_est": power_estimate(),
     }
 
 

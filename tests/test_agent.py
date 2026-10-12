@@ -360,3 +360,80 @@ def test_ollama_embedding_model_falls_back_to_embed(ollama, auth, monkeypatch):
     r = client(ollama).post("/ollama/load", json={"model": "nomic-embed-text"}, headers=auth)
     assert r.status_code == 200
     assert calls == ["/api/generate", "/api/embed"]
+
+
+# ---------------------------------------------------------------- power sensors
+def _rapl_zone(root, name, energy, rng=262143328850):
+    z = root / name
+    z.mkdir(exist_ok=True)
+    (z / "energy_uj").write_text(str(energy))
+    (z / "max_energy_range_uj").write_text(str(rng))
+
+
+def test_rapl_needs_two_samples_then_reports_watts(agent, monkeypatch, tmp_path):
+    monkeypatch.setattr(agent, "RAPL_BASE", str(tmp_path))
+    (tmp_path / "intel-rapl:0:0").mkdir()  # sub-zone (core), must be ignored
+    _rapl_zone(tmp_path, "intel-rapl:0", 1_000_000)
+    clock = iter([100.0, 102.0])
+    monkeypatch.setattr(agent.time, "monotonic", lambda: next(clock))
+    assert agent.rapl_watts() is None
+    _rapl_zone(tmp_path, "intel-rapl:0", 31_000_000)  # 30 J over 2 s
+    assert agent.rapl_watts() == 15.0
+
+
+def test_rapl_handles_counter_wrap(agent, monkeypatch, tmp_path):
+    monkeypatch.setattr(agent, "RAPL_BASE", str(tmp_path))
+    _rapl_zone(tmp_path, "intel-rapl:0", 500_000, rng=10_000_000)
+    agent._rapl_prev["intel-rapl:0"] = (9_500_000, 0.0)  # 1 J until the wrap point
+    monkeypatch.setattr(agent.time, "monotonic", lambda: 1.0)
+    assert agent.rapl_watts() == 1.0
+
+
+def test_rapl_missing_or_unreadable(agent, monkeypatch, tmp_path):
+    monkeypatch.setattr(agent, "RAPL_BASE", str(tmp_path / "nope"))
+    assert agent.rapl_watts() is None
+    monkeypatch.setattr(agent, "RAPL_BASE", str(tmp_path))
+    (tmp_path / "intel-rapl:0").mkdir()  # no energy_uj (as when not root)
+    assert agent.rapl_watts() is None
+
+
+PMIC = """     3V7_WL_SW_A current(0)=0.10000000A
+     VDD_CORE_A current(7)=2.00000000A
+     3V7_WL_SW_V volt(8)=3.70000000V
+     VDD_CORE_V volt(15)=0.80000000V
+     EXT5V_V volt(24)=5.13000000V"""
+
+
+def test_pi_pmic_sums_rails_and_caches(agent, monkeypatch):
+    calls = []
+    monkeypatch.setattr(agent.shutil, "which", lambda name: "/usr/bin/vcgencmd")
+    monkeypatch.setattr(agent.subprocess, "run", lambda *a, **k: calls.append(a) or SimpleNamespace(stdout=PMIC))
+    assert agent.pi_pmic_watts() == round(0.1 * 3.7 + 2.0 * 0.8, 2)
+    assert agent.pi_pmic_watts() == 1.97  # cached for 5 s
+    assert len(calls) == 1
+
+
+def test_pi_pmic_absent_or_failing(agent, monkeypatch):
+    monkeypatch.setattr(agent.shutil, "which", lambda name: None)
+    assert agent.pi_pmic_watts() is None
+    monkeypatch.setattr(agent.shutil, "which", lambda name: "/usr/bin/vcgencmd")
+
+    def boom(*a, **k):
+        raise OSError("no vcgencmd")
+
+    monkeypatch.setattr(agent.subprocess, "run", boom)
+    assert agent.pi_pmic_watts() is None
+
+
+def test_power_estimate_prefers_rapl(agent, monkeypatch):
+    monkeypatch.setattr(agent, "rapl_watts", lambda: 12.5)
+    monkeypatch.setattr(agent, "pi_pmic_watts", lambda: 3.0)
+    assert agent.power_estimate() == {"cpu_w": 12.5, "soc_w": None}
+    monkeypatch.setattr(agent, "rapl_watts", lambda: None)
+    assert agent.power_estimate() == {"cpu_w": None, "soc_w": 3.0}
+
+
+def test_metrics_include_power_estimate(agent, auth, monkeypatch):
+    monkeypatch.setattr(agent, "ethtool_wol", lambda iface: (None, None))
+    monkeypatch.setattr(agent, "power_estimate", lambda: {"cpu_w": 9.0, "soc_w": None})
+    assert client(agent).get("/metrics", headers=auth).json()["power_est"] == {"cpu_w": 9.0, "soc_w": None}

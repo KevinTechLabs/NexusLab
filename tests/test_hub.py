@@ -4,6 +4,7 @@ import hmac
 import json
 import socket
 import time
+from datetime import datetime, timedelta
 from types import SimpleNamespace
 
 import httpx
@@ -471,3 +472,142 @@ def test_error_messages(hub):
     assert hub._err(httpx.HTTPStatusError("x", request=req, response=resp)) == "nope"
     resp = httpx.Response(500, text="<html>", request=req)
     assert hub._err(httpx.HTTPStatusError("x", request=req, response=resp)) == "HTTP 500"
+
+
+# ---------------------------------------------------------------- energy
+def _metrics(cpu_w=None, soc_w=None, gpu_w=None, cpu_percent=50.0):
+    return {"cpu": {"percent": cpu_percent}, "ram": {"percent": 10.0},
+            "gpus": [{"power_w": gpu_w}] if gpu_w is not None else [],
+            "power_est": {"cpu_w": cpu_w, "soc_w": soc_w}}
+
+
+def test_estimate_from_cpu_and_gpu_sensors(hub):
+    ai = hub.DEVICES["ai"]
+    ai.metrics = _metrics(cpu_w=20.0, gpu_w=80.0)
+    assert hub.ENERGY.estimate(ai) == pytest.approx((20 + 80 + 25) / 0.87)  # GPU machines get a bigger overhead
+    mini = hub.DEVICES["mini"]
+    mini.metrics = _metrics(cpu_w=8.0)
+    assert hub.ENERGY.estimate(mini) == pytest.approx((8 + 6) / 0.87)
+
+
+def test_estimate_raspberry_pi_and_no_sensor(hub):
+    d = hub.DEVICES["mini"]
+    d.metrics = _metrics(soc_w=2.0)
+    assert hub.ENERGY.estimate(d) == pytest.approx((2.0 + 1.5) / 0.9)
+    d.metrics = _metrics(cpu_percent=50.0)  # nothing to read: scale between idle and max with CPU load
+    assert hub.ENERGY.estimate(d) == pytest.approx(10 + (45 - 10) * 0.5)
+
+
+def test_estimate_respects_per_device_tuning(load_hub):
+    devices = [{"id": "box", "name": "Box", "url": "http://10.0.0.5:9101", "token": "t",
+                "power": {"overhead_w": 10, "efficiency": 1.0}}]
+    hub = load_hub(devices=devices)
+    d = hub.DEVICES["box"]
+    d.metrics = _metrics(cpu_w=5.0)
+    assert hub.ENERGY.estimate(d) == pytest.approx(15.0)
+
+
+def test_sample_adds_up_kwh_and_skips_gaps(hub):
+    server, ai = hub.DEVICES["server"], hub.DEVICES["ai"]
+    server.online, server.metrics = True, _metrics(cpu_w=12.1)  # (12.1 + 6) / 0.87 = 20.8 W
+    ai.online = False
+    asyncio.run(hub.ENERGY.sample())
+    assert hub.ENERGY.now["server"] == {"w": 20.8, "method": "estimated"}
+    assert hub.ENERGY.now["ai"] == {"w": 0.0, "method": "off"}
+    for k in hub.ENERGY.last_t:
+        hub.ENERGY.last_t[k] -= 30  # 30 s later
+    asyncio.run(hub.ENERGY.sample())
+    today = max(hub.ENERGY.days)
+    kwh = hub.ENERGY.days[today]["server"]
+    assert kwh == pytest.approx(hub.ENERGY.estimate(server) * 30 / 3_600_000, rel=0.01)
+    assert "ai" not in hub.ENERGY.days[today]
+    for k in hub.ENERGY.last_t:
+        hub.ENERGY.last_t[k] -= 600  # the hub was down: don't count the gap
+    asyncio.run(hub.ENERGY.sample())
+    assert hub.ENERGY.days[today]["server"] == kwh
+
+
+def test_shelly_plug_is_measured_even_when_machine_is_off(load_hub):
+    devices = [
+        {"id": "gen2", "name": "Gen2", "url": "http://10.0.0.5:9101", "token": "t", "power_meter": {"url": "http://10.0.0.50/"}},
+        {"id": "gen1", "name": "Gen1", "url": "http://10.0.0.6:9101", "token": "t",
+         "power_meter": {"url": "http://10.0.0.51", "username": "admin", "password": "pw"}},
+    ]
+    hub = load_hub(devices=devices)
+
+    def rpc(request):
+        if request.url.host == "10.0.0.50":
+            return httpx.Response(200, json={"apower": 42.5, "aenergy": {"total": 1}})
+        return httpx.Response(404)
+
+    hub.routes[("GET", "/rpc/Switch.GetStatus")] = rpc
+    hub.routes[("GET", "/status")] = ok({"meters": [{"power": 7.0}]})
+    asyncio.run(hub.ENERGY.sample())
+    assert hub.ENERGY.now["gen2"] == {"w": 42.5, "method": "measured"}
+    assert hub.ENERGY.now["gen1"] == {"w": 7.0, "method": "measured"}
+    gen1 = [r for r in hub.requests if r.url.host == "10.0.0.51"]
+    assert gen1 and all(r.headers["authorization"].startswith("Basic ") for r in gen1)
+
+
+def test_shelly_unreachable_falls_back_to_estimate(load_hub):
+    devices = [{"id": "box", "name": "Box", "url": "http://10.0.0.5:9101", "token": "t", "power_meter": {"url": "http://10.0.0.50"}}]
+    hub = load_hub(devices=devices)  # no routes: every request fails
+    d = hub.DEVICES["box"]
+    d.online, d.metrics = True, _metrics(cpu_w=8.0)
+    asyncio.run(hub.ENERGY.sample())
+    assert hub.ENERGY.now["box"]["method"] == "estimated"
+
+
+def test_report_costs_history_and_projection(hub):
+    hub.ENERGY.rate = 0.3
+    today = datetime.now(hub.TZ).strftime("%Y-%m-%d")
+    hub.ENERGY.days[today] = {"server": 1.0, "ai": 2.0}
+    r = hub.ENERGY.report()
+    assert r["today_kwh"] == 3.0 and r["today_cost"] == 0.9
+    assert r["month_kwh"] >= 3.0 and r["month_projected_kwh"] >= r["month_kwh"]
+    assert len(r["history"]) == 30 and r["history"][-1] == {"day": today, "kwh": 3.0}
+    assert [d["id"] for d in r["devices"]] == ["server", "ai", "mini"]
+    assert r["devices"][1]["today_kwh"] == 2.0
+    hub.ENERGY.rate = 0
+    assert hub.ENERGY.report()["today_cost"] is None
+
+
+def test_rate_from_config_and_app_overrides_it(load_hub):
+    hub = load_hub(energy={"rate_per_kwh": 0.2, "currency": "€"})
+    assert (hub.ENERGY.rate, hub.ENERGY.currency) == (0.2, "€")
+    c = TestClient(hub.app)
+    assert login(c).status_code == 200
+    assert c.post("/api/energy/rate", json={"rate": 0.315}).json() == {"rate": 0.315, "currency": "€"}
+    assert c.get("/api/state").json()["energy"]["rate"] == 0.315
+    saved = json.loads(hub.ENERGY_FILE.read_text())
+    assert saved["rate"] == 0.315
+    assert load_hub(energy={"rate_per_kwh": 0.2}).ENERGY.rate == 0.315  # survives a restart
+
+
+@pytest.mark.parametrize("body", [{"rate": "abc"}, {"rate": -1}, {"rate": 50}, {}])
+def test_rate_validation(web, body):
+    assert web.post("/api/energy/rate", json=body).status_code == 400
+
+
+def test_rate_needs_login(hub):
+    assert TestClient(hub.app).post("/api/energy/rate", json={"rate": 0.3}).status_code == 401
+
+
+def test_corrupt_energy_file_is_ignored(load_hub, tmp_path):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "energy.json").write_text("{not json")
+    hub = load_hub(energy={"rate_per_kwh": 0.25})
+    assert hub.ENERGY.rate == 0.25 and hub.ENERGY.days == {}
+
+
+def test_energy_in_summary_and_chat_status(hub):
+    hub.ENERGY.rate = 0.3
+    yday = (datetime.now(hub.TZ) - timedelta(days=1)).strftime("%Y-%m-%d")
+    hub.ENERGY.days[yday] = {"server": 2.5}
+    _, fields = hub.build_summary()
+    energy = {f["name"]: f["value"] for f in fields}["⚡ Energy"]
+    assert "Yesterday **2.50 kWh** ($0.75)" in energy
+    text = hub.status_text()
+    assert "## Power and energy" in text and "Electricity rate: $0.3/kWh" in text
+    hub.ENERGY.rate = 0
+    assert "not set yet" in hub.status_text()

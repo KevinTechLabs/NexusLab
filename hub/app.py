@@ -4,6 +4,7 @@ serves the dashboard, proxies container actions/logs, handles login
 and sends Discord alerts.
 """
 import asyncio
+import calendar
 import hashlib
 import hmac
 import json
@@ -14,7 +15,7 @@ import socket
 import time
 from collections import defaultdict, deque
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
@@ -457,6 +458,16 @@ def build_summary():
             lines.append(f"Pi-hole blocked {p['blocked']:,} of {p['total']:,} queries ({p['percent']:.1f}%)")
         state = "🟢" if d.online else ("⚫" if d.power_action and d.power_action[0] == "shutdown" else "🔴")
         fields.append({"name": f"{state} {d.name}", "value": "\n".join(lines) or "No data yet", "inline": False})
+    try:
+        e = ENERGY.report()
+        cur = e["currency"]
+        money = lambda c: f" ({cur}{c:,.2f})" if c is not None else ""
+        lines = [f"Yesterday **{e['yesterday_kwh']:.2f} kWh**{money(e['yesterday_cost'])}",
+                 f"{e['month_name']} so far {e['month_kwh']:.1f} kWh{money(e['month_cost'])}",
+                 f"On pace for about {e['month_projected_kwh']:.0f} kWh{money(e['month_projected_cost'])} this month"]
+        fields.append({"name": "⚡ Energy", "value": "\n".join(lines), "inline": False})
+    except Exception:
+        pass
     if STATS.events:
         ev = [f"`{_local(t)}` {title}" for t, title in STATS.events[-10:]]
         more = len(STATS.events) - 10
@@ -496,6 +507,163 @@ async def summary_loop():
                 await send_summary()
             except Exception as e:
                 print(f"[alerts] summary failed: {e}", flush=True)
+
+
+# ---------------------------------------------------------------- energy
+ENERGY_CFG = CFG.get("energy") or {}
+ENERGY_FILE = DATA_FILE.parent / "energy.json"
+MAX_GAP = 60  # seconds; longer gaps (hub was down) aren't counted
+
+
+def _num(v, default=None):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return default
+
+
+class Energy:
+    """Estimates or measures each device's power draw and adds it up into kWh per day."""
+
+    def __init__(self):
+        self.rate = _num(ENERGY_CFG.get("rate_per_kwh"), 0.0)
+        self.currency = str(ENERGY_CFG.get("currency", "$"))
+        self.days = {}          # "YYYY-MM-DD" -> {device id: kWh}
+        self.now = {}           # device id -> {"w": float, "method": "measured"|"estimated"|"off"}
+        self.last_t = {}        # device id -> monotonic time of last sample
+        self.meter_http = None
+        self.dirty_at = 0.0
+        self.started = time.time()  # when tracking began; projections only count tracked time
+        try:
+            data = json.loads(ENERGY_FILE.read_text())
+            self.days = {k: {i: float(v) for i, v in d.items()} for k, d in (data.get("days") or {}).items()}
+            if data.get("rate") is not None:          # a rate set in the app wins over config
+                self.rate = float(data["rate"])
+            self.currency = data.get("currency", self.currency)
+            self.started = float(data.get("started", self.started))
+        except Exception:
+            pass
+
+    # ---- per-device power
+    def estimate(self, d):
+        """Watts at the wall, from the agent's sensors plus a typical allowance for the rest of the machine."""
+        pc = d.cfg.get("power") or {}
+        m = d.metrics or {}
+        pe = m.get("power_est") or {}
+        gpus = m.get("gpus") or []
+        gpu_w = sum(g.get("power_w") or 0 for g in gpus)
+        overhead = _num(pc.get("overhead_w"), 25.0 if gpus else 6.0)    # board, RAM, SSD, fans
+        eff = _num(pc.get("efficiency"), 0.87)                           # power supply losses
+        if pe.get("cpu_w") is not None:
+            return (pe["cpu_w"] + gpu_w + overhead) / eff
+        if pe.get("soc_w") is not None:                                  # Raspberry Pi 5 PMIC
+            return (pe["soc_w"] + _num(pc.get("overhead_w"), 1.5)) / _num(pc.get("efficiency"), 0.9)
+        idle = _num(pc.get("idle_w"), 10.0)                              # no sensor: scale with CPU load
+        peak = _num(pc.get("max_w"), 45.0)
+        cpu = ((m.get("cpu") or {}).get("percent") or 0) / 100
+        return idle + (peak - idle) * cpu + gpu_w / eff
+
+    async def read_meter(self, d):
+        """Shelly smart plug: Gen2/Gen3 RPC, falling back to Gen1."""
+        meter = d.cfg.get("power_meter") or {}
+        url = str(meter.get("url", "")).rstrip("/")
+        if not url:
+            return None
+        auth = (meter["username"], meter["password"]) if meter.get("password") else None
+        try:
+            r = await http.get(f"{url}/rpc/Switch.GetStatus", params={"id": meter.get("channel", 0)}, auth=auth, timeout=2.5)
+            if r.status_code == 200 and "apower" in r.json():
+                return float(r.json()["apower"])
+            r = await http.get(f"{url}/status", auth=auth, timeout=2.5)
+            r.raise_for_status()
+            return float(r.json()["meters"][meter.get("channel", 0)]["power"])
+        except Exception:
+            return None
+
+    async def sample(self):
+        mono = time.monotonic()
+        day = datetime.now(TZ).strftime("%Y-%m-%d")
+        bucket = self.days.setdefault(day, {})
+        readings = await asyncio.gather(*(self.read_meter(d) for d in DEVICES.values()))
+        for d, measured in zip(DEVICES.values(), readings, strict=True):
+            if measured is not None:
+                w, method = measured, "measured"
+            elif d.online and d.metrics:
+                w, method = self.estimate(d), "estimated"
+            else:
+                w, method = 0.0, "off"
+            self.now[d.id] = {"w": round(w, 1), "method": method}
+            prev = self.last_t.get(d.id)
+            self.last_t[d.id] = mono
+            if prev is not None and 0 < mono - prev <= MAX_GAP and w > 0:
+                bucket[d.id] = bucket.get(d.id, 0.0) + w * (mono - prev) / 3_600_000
+        if time.time() - self.dirty_at > 60:
+            self.save()
+
+    def save(self):
+        self.dirty_at = time.time()
+        keep = sorted(self.days)[-400:]
+        data = {"rate": self.rate, "currency": self.currency, "started": self.started,
+                "days": {k: self.days[k] for k in keep}}
+        try:
+            ENERGY_FILE.parent.mkdir(exist_ok=True)
+            tmp = ENERGY_FILE.with_suffix(".tmp")
+            tmp.write_text(json.dumps(data, indent=1))
+            tmp.replace(ENERGY_FILE)
+        except OSError as e:
+            print(f"[energy] Couldn't save {ENERGY_FILE}: {e}", flush=True)
+
+    # ---- summaries
+    def cost(self, kwh):
+        return round(kwh * self.rate, 2) if self.rate else None
+
+    def report(self):
+        now = datetime.now(TZ)
+        today, month = now.strftime("%Y-%m-%d"), now.strftime("%Y-%m")
+        yday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+        tday = self.days.get(today, {})
+        month_days = {k: v for k, v in self.days.items() if k.startswith(month)}
+        month_dev = {}
+        for v in month_days.values():
+            for i, k in v.items():
+                month_dev[i] = month_dev.get(i, 0.0) + k
+        month_kwh = sum(month_dev.values())
+        watts = sum(x["w"] for x in self.now.values())
+        # projection: average daily use over the time actually tracked this month, applied to the whole month
+        days_in_month = calendar.monthrange(now.year, now.month)[1]
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0).timestamp()
+        tracked_days = (time.time() - max(month_start, self.started)) / 86400
+        remaining = days_in_month - ((time.time() - month_start) / 86400)
+        if tracked_days >= 1 / 24:
+            projected = month_kwh + month_kwh / tracked_days * remaining
+        else:
+            projected = month_kwh + watts * 24 * remaining / 1000
+        devices = []
+        for d in DEVICES.values():
+            n = self.now.get(d.id, {"w": 0.0, "method": "off"})
+            devices.append({"id": d.id, "name": d.name, "watts": n["w"], "method": n["method"],
+                            "online": d.online, "today_kwh": round(tday.get(d.id, 0.0), 3),
+                            "month_kwh": round(month_dev.get(d.id, 0.0), 3)})
+        history = []
+        for i in range(29, -1, -1):
+            k = (now - timedelta(days=i)).strftime("%Y-%m-%d")
+            history.append({"day": k, "kwh": round(sum(self.days.get(k, {}).values()), 3)})
+        today_kwh = sum(tday.values())
+        yday_kwh = sum(self.days.get(yday, {}).values())
+        return {
+            "rate": self.rate, "currency": self.currency,
+            "watts": round(watts, 1),
+            "today_kwh": round(today_kwh, 3), "today_cost": self.cost(today_kwh),
+            "yesterday_kwh": round(yday_kwh, 3), "yesterday_cost": self.cost(yday_kwh),
+            "month_kwh": round(month_kwh, 3), "month_cost": self.cost(month_kwh),
+            "month_projected_kwh": round(projected, 1), "month_projected_cost": self.cost(projected),
+            "month_name": now.strftime("%B"),
+            "tracking_since": min(self.days) if self.days else today,
+            "devices": devices, "history": history,
+        }
+
+
+ENERGY = Energy()
 
 
 # ---------------------------------------------------------------- polling
@@ -546,6 +714,10 @@ async def poll_ollama(d: Device):
 async def metrics_loop():
     while True:
         await asyncio.gather(*(poll_metrics(d) for d in DEVICES.values()), return_exceptions=True)
+        try:
+            await ENERGY.sample()
+        except Exception as e:
+            print(f"[energy] {e}", flush=True)
         for d in DEVICES.values():
             STATS.record(d)
             try:
@@ -580,6 +752,7 @@ async def lifespan(app):
     yield
     for t in tasks:
         t.cancel()
+    ENERGY.save()
     await http.aclose()
 
 
@@ -709,7 +882,24 @@ async def apple_icon():
 
 @app.get("/api/state")
 async def state():
-    return {"generated": time.time(), "auth": bool(AUTH_PASS), "devices": [d.public() for d in DEVICES.values()]}
+    return {"generated": time.time(), "auth": bool(AUTH_PASS), "devices": [d.public() for d in DEVICES.values()],
+            "energy": ENERGY.report()}
+
+
+@app.post("/api/energy/rate")
+async def set_rate(request: Request):
+    try:
+        body = await request.json()
+        rate = float(body.get("rate"))
+    except Exception:
+        raise HTTPException(400, "Send {\"rate\": 0.32}")
+    if not 0 <= rate < 10:
+        raise HTTPException(400, "Enter a rate between 0 and 10 per kWh")
+    ENERGY.rate = round(rate, 4)
+    if body.get("currency"):
+        ENERGY.currency = str(body["currency"])[:3]
+    ENERGY.save()
+    return {"rate": ENERGY.rate, "currency": ENERGY.currency}
 
 
 def _device(dev_id):
@@ -866,6 +1056,16 @@ def status_text():
         if o and o.get("ok"):
             loaded = ", ".join(f"{x['name']} ({_gb(x.get('vram'))} VRAM)" for x in o.get("loaded") or []) or "none"
             out.append(f"- Ollama {o.get('version')}: loaded models: {loaded}; {len(o.get('installed') or [])} installed")
+    e = ENERGY.report()
+    cur = e["currency"]
+    money = lambda c: f" ({cur}{c:,.2f})" if c is not None else ""
+    out.append("\n## Power and energy (estimated from sensors unless marked measured)")
+    out.append(f"- Total draw right now: {e['watts']:.0f} W")
+    for x in e["devices"]:
+        out.append(f"  - {x['name']}: {x['watts']:.0f} W ({x['method']}), {x['today_kwh']:.2f} kWh today")
+    out.append(f"- Today: {e['today_kwh']:.2f} kWh{money(e['today_cost'])}; {e['month_name']} so far: {e['month_kwh']:.1f} kWh{money(e['month_cost'])}; "
+               f"projected month: {e['month_projected_kwh']:.0f} kWh{money(e['month_projected_cost'])}")
+    out.append(f"- Electricity rate: {cur}{e['rate']}/kWh" if e["rate"] else "- Electricity rate: not set yet (set it on the Power tab)")
     recent = [(t, title) for t, title in STATS.events if time.time() - t < 86400]
     if recent:
         out.append("\n## Alerts in the last 24 hours")

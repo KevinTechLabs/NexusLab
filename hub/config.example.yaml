@@ -47,6 +47,13 @@ devices:
     name: Mini PC
     url: http://192.168.1.13:9101
     token: PASTE_AGENT_TOKEN
+    # Optional: exact power from a Shelly smart plug (Gen1, Plus, Gen3) instead of an estimate
+    # power_meter:
+    #   url: http://192.168.1.50
+    # Optional: tune the estimate (defaults shown)
+    # power:
+    #   overhead_w: 6        # board, RAM, SSD, fans (25 for a desktop with a GPU)
+    #   efficiency: 0.87     # power supply efficiency
 
 # Discord alerts and the daily summary (all optional)
 alerts:
@@ -61,6 +68,11 @@ alerts:
   message_on_start: true          # post "NexusLab is running" when the hub starts
   daily_summary: "08:00"          # 24-hour time; "" turns it off
   timezone: America/Los_Angeles   # any tz database name, e.g. Europe/London
+
+# Power tab: energy use and cost
+energy:
+  rate_per_kwh: 0          # from your electricity bill; can also be set on the Power tab
+  currency: "$"
 
 # Chat tab (needs a device whose agent can reach Ollama)
 chat:
