@@ -11,12 +11,13 @@ When `auth.password` is set, every endpoint except the login and static icons ne
 | `POST` | `/api/login` | `{"username", "password"}` → sets the session cookie |
 | `GET` | `/logout` | Signs out |
 | `GET` | `/healthz` | `{"ok": true}`, no login needed (used by the Docker health check) |
-| `GET` | `/api/state` | Everything the dashboard shows: every device's metrics, history, containers, Pi-hole, Ollama and power state |
+| `GET` | `/api/state` | Everything the dashboard shows: every device's metrics, history, containers, Pi-hole, Ollama and power state, plus `energy` (watts now, kWh and cost today and this month, 30-day history) |
 | `POST` | `/api/devices/{id}/containers/{name}/{action}` | `start`, `stop` or `restart` a container (device must be `docker: control`) |
 | `GET` | `/api/devices/{id}/containers/{name}/logs?tail=300` | Container logs as plain text |
 | `POST` | `/api/devices/{id}/power/{action}` | `on` (Wake-on-LAN), `reboot` or `shutdown` |
 | `POST` | `/api/devices/{id}/ollama/{action}` | `load` or `unload`, body `{"model": "llama3.1:8b"}` |
 | `POST` | `/api/chat` | `{"model", "messages": [{role, content}]}` → streams Ollama's reply as NDJSON, with live status included |
+| `POST` | `/api/energy/rate` | `{"rate": 0.32}` sets the electricity rate per kWh |
 | `GET` | `/api/summary/send` | Posts a daily summary to Discord now (for testing) |
 | `GET` | `/manifest.webmanifest` | Web app manifest for "Add to Home Screen" |
 

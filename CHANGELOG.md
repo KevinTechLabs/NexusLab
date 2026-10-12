@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.0
+
+### Added
+- **Power tab.** Shows each machine's power draw right now, kWh and cost for today and this month, a projection for the whole month, and a 30-day chart of daily use. Set your electricity rate per kWh on the tab (or `energy.rate_per_kwh` in `config.yaml`).
+- Agents report CPU package power (RAPL on Intel and AMD) and, on a Raspberry Pi 5, the power chip's readings. The hub adds a typical allowance for the rest of the machine and power-supply losses to estimate watts at the wall.
+- Optional Shelly smart plugs (`power_meter.url` per device) give exact, **Measured** readings instead of estimates.
+- Energy totals are kept in `energy.json` next to `state.json` (`NEXUSLAB_DATA_DIR`), so they survive hub restarts.
+- `POST /api/energy/rate` sets the rate; `GET /api/state` includes an `energy` section.
+- The daily Discord summary includes yesterday's kWh and cost, and the chat assistant can answer questions about power use.
+
 ## 1.1.0
 
 ### Security
