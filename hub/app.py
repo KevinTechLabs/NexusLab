@@ -22,6 +22,7 @@ from zoneinfo import ZoneInfo
 
 import httpx
 import yaml
+from brain import MAX_CONTENT, PROTOCOL_VERSIONS, Brain, mcp_handle
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -745,6 +746,10 @@ async def lifespan(app):
     print(f"[nexuslab] Login {'on' if AUTH_PASS else 'OFF (set auth.password in config.yaml)'}", flush=True)
     print(f"[nexuslab] Discord alerts {'on' if ALERTER.active else 'off (no alerts.discord_webhook)'}", flush=True)
     print(f"[nexuslab] Daily summary {('at ' + SUMMARY_AT + ' ' + str(TZ)) if SUMMARY_AT and ALERTER.active else 'off'}", flush=True)
+    if BRAIN:
+        print(f"[brain] Vault at {BRAIN.vault}; MCP {'on at /mcp' if MCP_TOKEN else 'off (no brain.mcp_token)'}", flush=True)
+        if MCP_TOKEN and len(MCP_TOKEN) < 24:
+            print("[brain] brain.mcp_token is short. Use a long random one: openssl rand -hex 24", flush=True)
     tasks = [asyncio.create_task(metrics_loop()), asyncio.create_task(containers_loop()), asyncio.create_task(summary_loop())]
     if ALERTER.active and ALERTER.message_on_start:
         names = ", ".join(d.name for d in DEVICES.values())
@@ -779,6 +784,8 @@ PUBLIC_PATHS = {"/login", "/api/login", "/logout", "/healthz", "/manifest.webman
 @app.middleware("http")
 async def require_login(request: Request, call_next):
     path = request.url.path
+    if path == "/mcp":  # LLM clients sign in with brain.mcp_token instead of a session (checked in the route)
+        return await call_next(request)
     if not AUTH_PASS or path in PUBLIC_PATHS or path.startswith("/static/icons/"):
         return await call_next(request)
     if valid_session(request.cookies.get(COOKIE)):
@@ -883,7 +890,7 @@ async def apple_icon():
 @app.get("/api/state")
 async def state():
     return {"generated": time.time(), "auth": bool(AUTH_PASS), "devices": [d.public() for d in DEVICES.values()],
-            "energy": ENERGY.report()}
+            "energy": ENERGY.report(), "brain": {"inbox": BRAIN.inbox_count()} if BRAIN else None}
 
 
 @app.post("/api/energy/rate")
@@ -1147,6 +1154,125 @@ async def chat(request: Request):
             yield json.dumps({"error": _err(e)}) + "\n"
 
     return StreamingResponse(stream(), media_type="application/x-ndjson", headers={"Cache-Control": "no-store"})
+
+
+# ---------------------------------------------------------------- brain (LLM memory)
+BRAIN_CFG = CFG.get("brain") or {}
+BRAIN = None
+if BRAIN_CFG.get("enabled", True):
+    try:
+        BRAIN = Brain(BRAIN_CFG.get("vault") or DATA_FILE.parent / "vault",
+                      recall_chars=BRAIN_CFG.get("recall_chars", 8000), tz=TZ, owner=OWNER)
+    except OSError as e:
+        print(f"[brain] Couldn't open the vault, Brain is off: {e}", flush=True)
+MCP_TOKEN = str(BRAIN_CFG.get("mcp_token", "") or "").strip()
+MCP_ORIGINS = {str(o).rstrip("/") for o in BRAIN_CFG.get("mcp_allowed_origins") or []}
+BRAIN_NOTIFY = bool(BRAIN_CFG.get("notify_discord", True))
+
+
+def _brain():
+    if not BRAIN:
+        raise HTTPException(404, "Brain is turned off (brain.enabled in config.yaml)")
+    return BRAIN
+
+
+async def _body(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        body = None
+    return body if isinstance(body, dict) else {}
+
+
+@app.get("/api/brain")
+async def brain_state():
+    b = _brain()
+    return {"enabled": True, "mcp": bool(MCP_TOKEN), "owner": OWNER, "recall_chars": b.recall_chars,
+            "max_content": MAX_CONTENT, "graph": b.graph(), "inbox": b.inbox(), "activity": b.activity[-30:][::-1]}
+
+
+@app.post("/api/brain/recall")
+async def brain_recall(request: Request):
+    q = str((await _body(request)).get("query", "")).strip()[:300]
+    if not q:
+        raise HTTPException(400, "Type something to recall")
+    return _brain().recall(q)
+
+
+@app.get("/api/brain/note")
+async def brain_note(path: str = Query(..., max_length=400)):
+    n = _brain().read(path)
+    if not n:
+        raise HTTPException(404, "No such note")
+    return {k: n[k] for k in ("path", "title", "topic", "body", "links", "meta", "mtime", "is_moc")}
+
+
+@app.post("/api/brain/notes")
+async def brain_add(request: Request):
+    body = await _body(request)
+    links = body.get("links") if isinstance(body.get("links"), list) else []
+    try:
+        n = _brain().write(body.get("title"), body.get("content"), body.get("topic"), links, "You")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"saved": n["path"], "title": n["title"]}
+
+
+@app.post("/api/brain/inbox/{item_id}/{action}")
+async def brain_inbox(item_id: str, action: str, request: Request):
+    b = _brain()
+    if action not in ("approve", "discard"):
+        raise HTTPException(400, "Action must be approve or discard")
+    try:
+        if action == "discard":
+            item = b.discard(item_id)
+            return {"discarded": item["title"]}
+        body = await _body(request)
+        edits = {k: body[k] for k in ("title", "content", "topic") if isinstance(body.get(k), str)}
+        if isinstance(body.get("links"), list):
+            edits["links"] = [str(x) for x in body["links"]]
+        n = b.approve(item_id, edits)
+    except KeyError:
+        raise HTTPException(404, "That draft is gone. It may have been approved or discarded already.")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"saved": n["path"], "title": n["title"]}
+
+
+@app.post("/mcp")
+async def mcp_endpoint(request: Request):
+    """Model Context Protocol (Streamable HTTP) endpoint, for Open WebUI or any MCP client."""
+    b = _brain()
+    if not MCP_TOKEN:
+        raise HTTPException(404, "MCP is off. Set brain.mcp_token in config.yaml")
+    origin = request.headers.get("origin", "").rstrip("/")
+    if origin and origin not in MCP_ORIGINS:  # stops web pages from reaching it through a visitor's browser
+        raise HTTPException(403, "Origin not allowed")
+    given = request.headers.get("authorization", "")
+    if not secrets.compare_digest(given.encode(), f"Bearer {MCP_TOKEN}".encode()):
+        return JSONResponse({"detail": "Bad or missing token"}, status_code=401, headers={"WWW-Authenticate": "Bearer"})
+    version = request.headers.get("mcp-protocol-version")
+    if version and version not in PROTOCOL_VERSIONS:
+        raise HTTPException(400, f"Unsupported MCP protocol version {version}")
+    try:
+        msg = json.loads(await request.body())
+    except ValueError:
+        return JSONResponse({"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "Parse error"}}, status_code=400)
+    proposed = []
+    batch = isinstance(msg, list)
+    replies = [r for r in (mcp_handle(b, m, "LLM via MCP", proposed.append) for m in (msg if batch else [msg])) if r]
+    if BRAIN_NOTIFY and ALERTER.active:
+        for item in proposed:
+            asyncio.create_task(ALERTER.send(f"🧠 New memory to review: {item['title']}",
+                                             f"{item['content'][:300]}\n\nApprove or discard it on NexusLab's Brain tab.", BLUE, log=False))
+    if not replies:
+        return PlainTextResponse("", status_code=202)
+    return JSONResponse(replies if batch else replies[0])
+
+
+@app.get("/mcp")
+async def mcp_get():
+    return PlainTextResponse("This MCP server answers POST requests only (no event stream).", status_code=405, headers={"Allow": "POST"})
 
 
 @app.get("/api/summary/send")

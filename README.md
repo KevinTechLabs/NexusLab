@@ -17,6 +17,7 @@ A self-hosted dashboard for monitoring and controlling the machines in a homelab
 - **Power control:** Start (Wake-on-LAN), Reboot and Shut down any machine. Works from anywhere over Tailscale or another VPN.
 - **Pi-hole:** queries blocked, share blocked, blocklist size, clients and blocking status (v5 and v6).
 - **Ollama:** loaded models and their VRAM use, plus one-tap Load and Unload.
+- **Brain:** long-term memory for your LLMs, kept as an Obsidian vault and drawn as a brain. Models in Open WebUI recall and propose memories over MCP; nothing is saved until you approve it. See [docs/BRAIN.md](docs/BRAIN.md).
 - **Chat:** ask your own Ollama models "check status of machines" and get an answer based on live data from every machine.
 - **Power and energy:** watts per machine right now, kWh and cost today and this month, a projection for the month, and a 30-day chart. Estimated from CPU and GPU power sensors, or measured exactly with a Shelly smart plug.
 - **Discord alerts:** machine offline, CPU or GPU running hot, container stopped, plus a daily summary. Recovery messages when problems clear.
@@ -81,6 +82,7 @@ To try the interface without any hardware, open `hub/static/index.html?demo` thr
 |---|---|
 | [Installation](docs/INSTALL.md) | Step-by-step setup for agents, hub, Pi-hole, Discord, Wake-on-LAN and the phone app |
 | [Configuration](docs/CONFIGURATION.md) | Every option in `config.yaml` and the agent's settings |
+| [Brain](docs/BRAIN.md) | Give your Open WebUI models a memory, and open it in Obsidian |
 | [API](docs/API.md) | Hub and agent endpoints |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | Fixes for the problems you're most likely to hit |
 
@@ -91,6 +93,7 @@ To try the interface without any hardware, open `hub/static/index.html?demo` thr
 - Agents refuse any request without their token, and an agent with no token configured refuses everything except `/health` rather than running open. Container control is enforced by each agent itself, so a `monitor` machine can't be controlled even if the hub is misconfigured.
 - Container names are checked against Docker's naming rules on both the hub and the agent before anything is forwarded, and the Ollama address must be `http://` or `https://`.
 - The session cookie is `HttpOnly` and `SameSite=Lax`, and also `Secure` when the hub is reached over HTTPS (directly or behind a reverse proxy that sets `X-Forwarded-Proto`). Eight wrong passwords from one address lock it out for 5 minutes.
+- The Brain's MCP endpoint needs its own token (`brain.mcp_token`), and models can only propose memories. Nothing reaches the vault until you approve it on the Brain tab.
 - `config.yaml` and `hub/data/` hold your secrets and are excluded by `.gitignore`. Never commit them.
 
 ## Development
@@ -115,6 +118,7 @@ agent/          Runs on every machine
   install-agent.sh      installs it as a systemd service
 hub/            Runs once, in Docker
   app.py                polling, alerts, login, chat, API
+  brain.py              LLM memory: Obsidian vault, recall, review queue, MCP
   static/               dashboard, login page, icons
   config.example.yaml   copy to config.yaml
 docs/           Guides and screenshots
