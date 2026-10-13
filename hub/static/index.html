@@ -39,7 +39,7 @@ html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *,*::before,*::after{box-sizing:inherit}
 [hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--text);font:400 15px/1.5 Sora,"Segoe UI",Roboto,system-ui,sans-serif;font-variant-numeric:tabular-nums}
-button,select,input{font:inherit;color:inherit}
+button,select,input,textarea{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .wrap{max-width:1100px;margin:0 auto;padding:0 16px}
 
@@ -214,6 +214,73 @@ pre.logs{margin:0;padding:12px 16px;overflow:auto;height:min(65dvh,600px);font:1
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--text);color:var(--card);padding:9px 16px;border-radius:10px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:calc(100vw - 32px)}
 .toast.show{opacity:1} .toast.err{background:var(--hot);color:#fff}
 
+/* brain */
+.vbtn .badge{display:inline-block;min-width:17px;padding:1px 5px;margin-left:5px;border-radius:9px;background:var(--warn);color:#fff;font-size:11px;line-height:1.4;text-align:center;vertical-align:1px}
+.br{display:flex;flex-direction:column;gap:14px}
+.br-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.br-head h2{margin:0;font-size:24px;font-weight:700;letter-spacing:-.02em;margin-right:auto}
+.br-head .aside{color:var(--muted);font-size:13px}
+.chip.on{background:var(--accent-soft);color:var(--accent)}
+.br-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:14px;align-items:start}
+.br-stage{position:relative;padding:0;overflow:hidden}
+.br-stage canvas{display:block;width:100%;aspect-ratio:1000/700;touch-action:manipulation;cursor:pointer}
+.br-empty{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);width:min(320px,80%);text-align:center;color:var(--muted);font-size:14px;margin:0;pointer-events:none}
+.br-empty strong{display:block;color:var(--text);font-size:16px;margin-bottom:4px}
+.br-legend{display:flex;flex-wrap:wrap;gap:6px 16px;padding:10px 16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+.br-legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:0}
+.br-legend .l-moc{border:2px solid var(--accent)} .br-legend .l-note{background:var(--muted)}
+.br-legend .l-in{background:var(--warn)} .br-legend .l-over{border:2px solid var(--warn)}
+.br-tip{position:absolute;pointer-events:none;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 11px;max-width:250px;box-shadow:0 8px 24px rgb(0 0 0/.16);font-size:13px;line-height:1.4}
+.br-tip b{display:block;font-size:13.5px;margin-bottom:2px}
+.br-tip span{display:block;font-size:11.5px;color:var(--muted);margin-bottom:4px;overflow-wrap:anywhere}
+.br-panel{display:flex;flex-direction:column;gap:14px;min-width:0;margin-bottom:0}
+.seg3{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;background:var(--bg);border-radius:11px;padding:3px}
+.seg3 button{all:unset;cursor:pointer;text-align:center;padding:8px 6px;border-radius:8px;font-size:14px;font-weight:600;color:var(--muted)}
+.seg3 button[aria-selected="true"]{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgb(0 0 0/.12)}
+.seg3 button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.br-pane{display:flex;flex-direction:column;gap:12px}
+.br-row{display:flex;gap:8px}
+.field{width:100%;min-width:0;background:var(--btn);border:1px solid var(--line);border-radius:10px;padding:9px 11px;font-size:16px;color:var(--text);outline:none}
+.field:focus{border-color:var(--accent)}
+textarea.field{resize:vertical;line-height:1.5;font-size:15px}
+.flabel{font-size:12px;color:var(--muted);font-weight:500;margin-bottom:-6px}
+.br-log{list-style:none;margin:0;padding:9px 11px;background:var(--bg);border-radius:10px;font:12px/1.65 ui-monospace,"SF Mono",Menlo,Consolas,monospace;color:var(--muted);min-height:64px}
+.br-log li{display:flex;gap:8px}.br-log li b{color:var(--accent);font-weight:500;flex:none;width:4.8em}
+.br-log li span{min-width:0;overflow-wrap:anywhere}
+.br-budget{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted)}
+.br-bar{display:flex;gap:2px;height:8px;border-radius:4px;background:var(--track);overflow:hidden;margin-top:-6px}
+.br-bar i{display:block;height:100%;background:var(--warn)}.br-bar i:nth-child(even){opacity:.7}
+.br-res{display:flex;flex-direction:column}
+.br-res button{all:unset;cursor:pointer;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:3px 10px;padding:10px 0;border-top:1px solid var(--line);align-items:baseline}
+.br-res button:first-child{border-top:0}
+.br-res button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.br-res .via{font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:2px 6px;border-radius:5px;background:var(--accent-soft);color:var(--accent)}
+.br-res .via.search{background:var(--soft);color:var(--warn)}
+.br-res .rt{font-weight:600;font-size:14.5px}
+.br-res .rc{font-size:12px;color:var(--muted)}
+.br-res .rs{grid-column:2/-1;font-size:13px;color:var(--muted);line-height:1.45}
+.br-res .over{opacity:.55}
+.draft{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:9px;background:var(--bg)}
+.draft-top{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.draft-top .tag{margin-left:0}
+.draft .acts{display:flex;gap:8px;justify-content:flex-end}
+.br-add{border-top:1px solid var(--line);padding-top:10px}
+.br-add summary{cursor:pointer;font-weight:600;font-size:14px;padding:4px 0}
+.br-add form{display:flex;flex-direction:column;gap:9px;margin-top:8px}
+.br-act{list-style:none;margin:0;padding:0}
+.br-act li{display:grid;grid-template-columns:4.6em minmax(0,1fr);gap:8px;padding:9px 0;border-top:1px solid var(--line);font-size:13.5px}
+.br-act li:first-child{border-top:0}
+.br-act time{color:var(--muted);font-size:12px;padding-top:1px}
+.br-act button{all:unset;cursor:pointer;color:var(--accent);font-size:12.5px;margin-left:6px}
+.br-act .llm{font-size:11px;padding:1px 6px;border-radius:9px;background:var(--accent-soft);color:var(--accent);margin-right:5px}
+.br-mcp{font-size:13px;color:var(--muted);margin:0;line-height:1.55;border-top:1px solid var(--line);padding-top:10px}
+.br-mcp code,.note-body code{font:12.5px ui-monospace,Menlo,Consolas,monospace;background:var(--soft);padding:1px 5px;border-radius:5px;overflow-wrap:anywhere}
+#note-dlg{width:min(640px,calc(100vw - 24px))}
+.note-body{padding:14px 18px 18px;overflow:auto;max-height:min(65dvh,600px);line-height:1.6}
+.note-body p{margin:0 0 10px}.note-body ul{margin:2px 0 10px;padding-left:20px}
+.note-body .mh{font-weight:700;margin-top:12px}
+.note-body a{color:var(--accent)}
+@media (max-width:900px){.br-grid{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:760px){
   .tabs{grid-template-columns:repeat(2,minmax(0,1fr))}
   .rings{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -236,7 +303,7 @@ pre.logs{margin:0;padding:12px 16px;overflow:auto;height:min(65dvh,600px);font:1
       <span id="online-count">Connecting…</span><span id="updated"></span>
       <span id="demo-tag" class="demo-tag" hidden>Demo data</span>
     </div>
-    <nav class="views" aria-label="View"><button class="vbtn" data-view="dash" aria-pressed="true">Dashboard</button><button class="vbtn" data-view="power" aria-pressed="false">Power</button><button class="vbtn" data-view="chat" aria-pressed="false">Chat</button></nav>
+    <nav class="views" aria-label="View"><button class="vbtn" data-view="dash" aria-pressed="true">Dashboard</button><button class="vbtn" data-view="power" aria-pressed="false">Power</button><button class="vbtn" data-view="chat" aria-pressed="false">Chat</button><button class="vbtn" data-view="brain" aria-pressed="false">Brain<span class="badge" id="br-badge" hidden></span></button></nav>
     <a class="logout" id="logout" href="/logout" hidden>Log out</a>
   </header>
   <div class="banner" id="banner" hidden><p id="banner-text"></p></div>
@@ -275,6 +342,47 @@ pre.logs{margin:0;padding:12px 16px;overflow:auto;height:min(65dvh,600px);font:1
       <button class="btn send" id="chat-send" type="submit">Send</button>
     </form>
   </section>
+  <section id="brain" class="br" hidden aria-label="Brain: your LLMs' memory">
+    <div class="br-head"><h2>Brain</h2><span class="aside" id="br-stats"></span><span class="chip" id="br-mcp-chip"></span></div>
+    <div class="br-grid">
+      <section class="card br-stage">
+        <canvas id="br-canvas" role="img" aria-label="Memory notes drawn as neurons inside a brain, grouped by topic"></canvas>
+        <p class="br-empty" id="br-empty" hidden><strong>No memories yet</strong>Approve what your models propose, or add one yourself in the Inbox tab.</p>
+        <div class="br-tip" id="br-tip" hidden></div>
+        <div class="br-legend"><span><i class="l-moc"></i>Topic</span><span><i class="l-note"></i>Memory</span><span><i class="l-in"></i>Recalled</span><span><i class="l-over"></i>Matched, over budget</span></div>
+      </section>
+      <section class="card br-panel">
+        <div class="seg3" role="tablist" aria-label="Brain panels">
+          <button role="tab" data-btab="recall" aria-selected="true">Recall</button>
+          <button role="tab" data-btab="inbox" aria-selected="false">Inbox <span id="br-inbox-n"></span></button>
+          <button role="tab" data-btab="activity" aria-selected="false">Activity</button>
+        </div>
+        <div class="br-pane" data-bpane="recall">
+          <form class="br-row" id="br-recall-form"><input class="field" id="br-q" autocomplete="off" placeholder="What does it remember about…" aria-label="Recall"><button class="btn primary" type="submit">Recall</button></form>
+          <ol class="br-log" id="br-log"><li><b>ready</b><span>Ask a question to see what your models would recall.</span></li></ol>
+          <div class="br-budget"><span>Context budget</span><span id="br-budget-n">0 chars</span></div>
+          <div class="br-bar" id="br-bar"></div>
+          <div class="br-res" id="br-res"></div>
+        </div>
+        <div class="br-pane" data-bpane="inbox" hidden>
+          <div id="br-drafts"></div>
+          <details class="br-add"><summary>Add a memory yourself</summary>
+            <form id="br-add-form">
+              <input class="field" name="title" placeholder="Title, e.g. Nightly backups run at 2am" aria-label="Title" maxlength="120" required>
+              <input class="field" name="topic" placeholder="Topic, e.g. Homelab" aria-label="Topic" list="br-topics" maxlength="60">
+              <textarea class="field" name="content" rows="4" placeholder="What should your models remember?" aria-label="Content" required></textarea>
+              <button class="btn primary" type="submit">Save to vault</button>
+            </form>
+          </details>
+        </div>
+        <div class="br-pane" data-bpane="activity" hidden>
+          <ul class="br-act" id="br-act"></ul>
+          <p class="br-mcp" id="br-mcp"></p>
+        </div>
+      </section>
+    </div>
+    <datalist id="br-topics"></datalist>
+  </section>
 </div>
 
 <dialog id="logs">
@@ -285,6 +393,10 @@ pre.logs{margin:0;padding:12px 16px;overflow:auto;height:min(65dvh,600px);font:1
     <button class="btn" id="logs-refresh">Refresh</button><button class="btn" id="logs-close">Close</button>
   </div>
   <pre class="logs" id="logs-body" tabindex="0"></pre>
+</dialog>
+<dialog id="note-dlg">
+  <div class="dlg-head"><h2 id="note-title">Note</h2><span class="meta" id="note-meta"></span><button class="btn" id="note-close">Close</button></div>
+  <div class="note-body" id="note-body" tabindex="0"></div>
 </dialog>
 <div class="toast" id="toast" role="status"></div>
 
@@ -603,6 +715,10 @@ function render(state) {
   const offCount = state.devices.filter(x => !x.online && x.power_pending === 'shutdown').length;
   $('#online-count').innerHTML = `<strong>${on} of ${state.devices.length}</strong> devices online${offCount ? `, ${offCount} turned off` : ''}`;
   $('#logout').hidden = !state.auth;
+  const inboxN = state.brain?.inbox || 0, badge = $('#br-badge');
+  badge.hidden = !inboxN; badge.textContent = inboxN;
+  document.querySelector('.vbtn[data-view="brain"]').hidden = state.brain === null;
+  if (view === 'brain' && brainData && inboxN !== brainData.inbox.length) refreshBrain();
   tickUpdated();
 }
 function tickUpdated() { if (lastState) $('#updated').textContent = `Updated ${fmtAgo(lastState.generated)}`; }
@@ -817,6 +933,7 @@ const demo = DEMO ? (() => {
         };
       })};
       out.energy = demoEnergy(out.devices);
+      out.brain = {inbox: demoBrain.inboxCount()};
       return out;
     },
     setRate(r) { rate = r; },
@@ -959,7 +1076,8 @@ let view = 'dash';
 function setView(v) {
   view = v;
   const isChat = v === 'chat', isPower = v === 'power';
-  $('#chat').hidden = !isChat; $('#power').hidden = !isPower;
+  $('#chat').hidden = !isChat; $('#power').hidden = !isPower; $('#brain').hidden = v !== 'brain';
+  if (v === 'brain') brainOpen(); else brainClose();
   tabs.hidden = v !== 'dash'; detail.hidden = v !== 'dash';
   document.querySelectorAll('.vbtn').forEach(b => b.setAttribute('aria-pressed', b.dataset.view === v));
   try { history.replaceState(null, '', v !== 'dash' ? '#' + v : (selected ? '#' + selected : location.pathname)); } catch {}
@@ -1091,9 +1209,446 @@ async function demoChat(reply) {
   }
 }
 
+/* ---------------------------------------------------------------- brain */
+const post = (url, body) => fetch(url, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body || {})})
+  .then(jsonOrThrow).then(r => r.json());
+const bapi = {
+  get: () => DEMO ? Promise.resolve(demoBrain.get()) : fetch('/api/brain', {cache: 'no-store'}).then(jsonOrThrow).then(r => r.json()),
+  recall: q => DEMO ? Promise.resolve(demoBrain.recall(q)) : post('/api/brain/recall', {query: q}),
+  note: ref => DEMO ? Promise.resolve(demoBrain.note(ref)) : fetch(`/api/brain/note?path=${encodeURIComponent(ref)}`, {cache: 'no-store'}).then(jsonOrThrow).then(r => r.json()),
+  inbox: (id, act, body) => DEMO ? Promise.resolve(demoBrain.inbox(id, act, body)) : post(`/api/brain/inbox/${encodeURIComponent(id)}/${act}`, body),
+  add: body => DEMO ? Promise.resolve(demoBrain.add(body)) : post('/api/brain/notes', body),
+};
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const BV = {W: 1000, H: 700};
+const SHAPES = [   // lateral view of a brain, frontal lobe on the left
+  {t: 'e', x: 480, y: 300, rx: 400, ry: 220}, {t: 'e', x: 500, y: 420, rx: 300, ry: 112},
+  {t: 'e', x: 745, y: 505, rx: 140, ry: 72}, {t: 'r', x: 592, y: 470, w: 66, h: 205}];
+const ANCHORS = [[245, 290], [530, 175], [430, 455], [790, 300], [742, 508], [345, 170], [640, 360], [255, 420], [880, 410], [520, 300]];
+const inside = (x, y, m = 0) => SHAPES.some(s => s.t === 'e'
+  ? ((x - s.x) / (s.rx - m)) ** 2 + ((y - s.y) / (s.ry - m)) ** 2 <= 1
+  : x >= s.x + m && x <= s.x + s.w - m && y >= s.y + m && y <= s.y + s.h - m);
+const hashStr = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+const rng = seed => { let s = seed || 1; return () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296; };
+
+const BR = {nodes: new Map(), edges: [], lit: new Map(), pulses: [], focus: false, hover: null, running: false, layer: document.createElement('canvas'), S: 1, DPR: 1, T: {}};
+let brainData = null, brainTimer = null, brainSig = '', lastAct = null, brainBusy = false;
+const bcv = $('#br-canvas'), bctx = bcv.getContext('2d');
+
+function layoutBrain(g) {
+  const sig = g.nodes.map(n => n.id + '|' + n.home).join() + '#' + g.links.length;
+  if (sig === brainSig) {   // same notes: keep positions, refresh text
+    for (const n of g.nodes) Object.assign(BR.nodes.get(n.id), n);
+    return;
+  }
+  brainSig = sig;
+  const old = BR.nodes;
+  BR.nodes = new Map(); BR.edges = [];
+  const mocs = g.nodes.filter(n => n.moc).sort((a, b) => a.title.localeCompare(b.title));
+  const notes = g.nodes.filter(n => !n.moc);
+  const gap = notes.length > 160 ? 13 : notes.length > 70 ? 19 : 27;
+  const free = (r, margin) => { for (let i = 0; i < 400; i++) { const x = 120 + r() * 760, y = 100 + r() * 540; if (inside(x, y, margin)) return {x, y}; } return {x: 500, y: 320}; };
+  mocs.forEach((m, i) => {
+    const a = ANCHORS[i] ? {x: ANCHORS[i][0], y: ANCHORS[i][1]} : free(rng(hashStr(m.id)), 60);
+    BR.nodes.set(m.id, {...m, ...a});
+  });
+  for (const n of notes) {
+    const prev = old.get(n.id);
+    if (prev && prev.home === n.home) { BR.nodes.set(n.id, {...n, x: prev.x, y: prev.y, born: prev.born}); continue; }
+    const c = (n.home && BR.nodes.get(n.home)) || {x: 500, y: 330}, r = rng(hashStr(n.id));
+    let pos = null;
+    for (let i = 0; i < 360 && !pos; i++) {
+      const a = r() * Math.PI * 2, d = 38 + r() * (i < 160 ? 110 : 200);
+      const x = c.x + Math.cos(a) * d * 1.25, y = c.y + Math.sin(a) * d * .85;
+      if (!inside(x, y, 16)) continue;
+      let ok = true;
+      for (const o of BR.nodes.values()) if ((o.x - x) ** 2 + (o.y - y) ** 2 < gap * gap) { ok = false; break; }
+      if (ok) pos = {x, y};
+    }
+    BR.nodes.set(n.id, {...n, ...(pos || free(r, 16)), born: old.size && !prev ? performance.now() : 0});
+  }
+  for (const [a, b] of g.links) if (BR.nodes.has(a) && BR.nodes.has(b)) BR.edges.push({a, b, moc: BR.nodes.get(a).moc || BR.nodes.get(b).moc});
+}
+
+function brainTheme() {
+  const cs = getComputedStyle(document.documentElement);
+  for (const k of ['card', 'soft', 'line', 'text', 'muted', 'accent', 'warn', 'good']) BR.T[k] = cs.getPropertyValue('--' + k).trim();
+}
+function brainShapePath(c) {
+  c.beginPath();
+  SHAPES.forEach(s => { if (s.t === 'e') { c.moveTo(s.x + s.rx, s.y); c.ellipse(s.x, s.y, s.rx, s.ry, 0, 0, Math.PI * 2); } else c.rect(s.x, s.y, s.w, s.h); });
+}
+function brainLayer() {
+  brainTheme();
+  const w = bcv.clientWidth; if (!w) return;
+  const T = BR.T, L = BR.layer;
+  BR.DPR = Math.min(2, devicePixelRatio || 1); BR.S = w / BV.W;
+  bcv.width = L.width = Math.round(w * BR.DPR); bcv.height = L.height = Math.round(w * BV.H / BV.W * BR.DPR);
+  const c = L.getContext('2d');
+  c.setTransform(1, 0, 0, 1, 0, 0); c.fillStyle = T.card; c.fillRect(0, 0, L.width, L.height);
+  c.setTransform(BR.S * BR.DPR, 0, 0, BR.S * BR.DPR, 0, 0);
+  c.strokeStyle = T.line; c.lineWidth = 7;
+  SHAPES.forEach(s => { c.beginPath(); s.t === 'e' ? c.ellipse(s.x, s.y, s.rx, s.ry, 0, 0, Math.PI * 2) : c.rect(s.x, s.y, s.w, s.h); c.stroke(); });
+  brainShapePath(c); c.fillStyle = T.soft; c.fill();
+  c.save(); brainShapePath(c); c.clip();
+  const r = rng(41); c.strokeStyle = T.line; c.lineCap = 'round'; c.lineJoin = 'round';
+  for (let i = 0, n = 0; n < 70 && i < 2000; i++) {   // gyri
+    let x = 80 + r() * 820, y = 80 + r() * 600; if (!inside(x, y, 10)) continue;
+    n++;
+    let a = r() * Math.PI * 2; c.lineWidth = 1 + r() * 1.6; c.globalAlpha = .6;
+    c.beginPath(); c.moveTo(x, y);
+    for (let k = 0; k < 14; k++) { a += (r() - .5) * 1.6; const nx = x + Math.cos(a) * 16, ny = y + Math.sin(a) * 16; c.quadraticCurveTo(x + Math.cos(a + .8) * 10, y + Math.sin(a + .8) * 10, nx, ny); x = nx; y = ny; }
+    c.stroke();
+  }
+  c.globalAlpha = .9; c.lineWidth = 3.2;
+  c.beginPath(); c.moveTo(250, 395); c.bezierCurveTo(380, 350, 520, 360, 640, 300); c.stroke();
+  c.beginPath(); c.moveTo(560, 86); c.bezierCurveTo(520, 170, 470, 250, 455, 345); c.stroke();
+  c.restore();
+}
+new ResizeObserver(() => { if (view === 'brain') brainLayer(); }).observe(bcv);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (view === 'brain') brainLayer(); });
+
+const mix = (col, a) => `color-mix(in srgb, ${col} ${Math.round(a * 100)}%, transparent)`;
+const bctrl = (a, b) => ({x: (a.x + b.x) / 2 - (b.y - a.y) * .14, y: (a.y + b.y) / 2 + (b.x - a.x) * .14});
+const qpt = (a, c, b, t) => { const u = 1 - t; return {x: u * u * a.x + 2 * u * t * c.x + t * t * b.x, y: u * u * a.y + 2 * u * t * c.y + t * t * b.y}; };
+function litState(id, now) { const s = BR.lit.get(id); return s && now >= s.at ? s : null; }
+function blabel(text, x, y, font, color, align = 'center') {
+  bctx.font = font; bctx.textAlign = align; bctx.lineJoin = 'round';
+  bctx.strokeStyle = BR.T.card; bctx.lineWidth = 4; bctx.strokeText(text, x, y);
+  bctx.fillStyle = color; bctx.fillText(text, x, y);
+}
+const shortTitle = t => t.length > 34 ? t.slice(0, 32) + '…' : t;
+
+function brainFrame(now) {
+  if (view !== 'brain') { BR.running = false; return; }
+  requestAnimationFrame(brainFrame);
+  if (!BR.layer.width) { brainLayer(); if (!BR.layer.width) return; }
+  const T = BR.T, c = bctx;
+  c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(BR.layer, 0, 0);
+  c.setTransform(BR.S * BR.DPR, 0, 0, BR.S * BR.DPR, 0, 0);
+  for (const e of BR.edges) {
+    const a = BR.nodes.get(e.a), b = BR.nodes.get(e.b), k = bctrl(a, b), on = litState(e.a, now) && litState(e.b, now);
+    c.strokeStyle = on ? mix(T.accent, .75) : mix(T.muted, BR.focus ? .14 : e.moc ? .34 : .24);
+    c.lineWidth = on ? 1.8 : 1; c.setLineDash(e.moc ? [] : [3, 4]);
+    c.beginPath(); c.moveTo(a.x, a.y); c.quadraticCurveTo(k.x, k.y, b.x, b.y); c.stroke();
+  }
+  c.setLineDash([]);
+  BR.pulses = BR.pulses.filter(p => now < p.start + p.dur);
+  for (const p of BR.pulses) {
+    if (now < p.start) continue;
+    const a = BR.nodes.get(p.a), b = BR.nodes.get(p.b); if (!a || !b) continue;
+    const q = qpt(a, bctrl(a, b), b, (now - p.start) / p.dur);
+    c.fillStyle = T.warn; c.beginPath(); c.arc(q.x, q.y, 3.2, 0, Math.PI * 2); c.fill();
+    c.fillStyle = mix(T.warn, .25); c.beginPath(); c.arc(q.x, q.y, 8, 0, Math.PI * 2); c.fill();
+  }
+  const breathe = reduceMotion ? 1 : 1 + Math.sin(now / 520) * .12;
+  for (const n of BR.nodes.values()) {
+    const s = litState(n.id, now), scan = BR.lit.get(n.id)?.scan;
+    if (n.moc) {
+      if (scan && now > scan && now < scan + 600) {
+        const t = (now - scan) / 600; c.strokeStyle = mix(T.accent, 1 - t); c.lineWidth = 2;
+        c.beginPath(); c.arc(n.x, n.y, 10 + t * 26, 0, Math.PI * 2); c.stroke();
+      }
+      if (s) { c.fillStyle = mix(T.accent, .18); c.beginPath(); c.arc(n.x, n.y, 24 * breathe, 0, Math.PI * 2); c.fill(); }
+      c.fillStyle = T.card; c.strokeStyle = T.accent; c.lineWidth = 2.6;
+      c.beginPath(); c.arc(n.x, n.y, 10, 0, Math.PI * 2); c.fill(); c.stroke();
+      c.fillStyle = T.accent; c.beginPath(); c.arc(n.x, n.y, 4, 0, Math.PI * 2); c.fill();
+      continue;
+    }
+    const grow = n.born ? Math.min(1, (now - n.born) / 700) : 1;
+    if (n.born && grow < 1) { c.strokeStyle = mix(T.good, 1 - grow); c.lineWidth = 2; c.beginPath(); c.arc(n.x, n.y, 8 + grow * 30, 0, Math.PI * 2); c.stroke(); }
+    if (s?.s === 'in') {
+      c.fillStyle = mix(T.warn, .22); c.beginPath(); c.arc(n.x, n.y, 13 * breathe, 0, Math.PI * 2); c.fill();
+      c.fillStyle = T.warn; c.beginPath(); c.arc(n.x, n.y, 6.2, 0, Math.PI * 2); c.fill();
+    } else if (s?.s === 'over') {
+      c.fillStyle = T.card; c.strokeStyle = T.warn; c.lineWidth = 2;
+      c.beginPath(); c.arc(n.x, n.y, 5.4, 0, Math.PI * 2); c.fill(); c.stroke();
+    } else {
+      c.fillStyle = mix(T.text, BR.focus ? .28 : .6);
+      c.beginPath(); c.arc(n.x, n.y, 4.6 * Math.max(.2, grow), 0, Math.PI * 2); c.fill();
+    }
+  }
+  if (BR.hover) { c.strokeStyle = T.text; c.lineWidth = 1.5; c.beginPath(); c.arc(BR.hover.x, BR.hover.y, BR.hover.moc ? 15 : 10, 0, Math.PI * 2); c.stroke(); }
+  const k = 1 / Math.max(.55, Math.min(1, BR.S));   // keep labels readable on a phone
+  for (const n of BR.nodes.values()) if (n.moc) blabel(shortTitle(n.topic), n.x, n.y + 22 + 7 * k, `700 ${Math.round(15 * k)}px Sora, sans-serif`, T.text);
+  const top = [...BR.nodes.values()].filter(n => !n.moc && litState(n.id, now)?.s === 'in').sort((a, b) => BR.lit.get(a.id).rank - BR.lit.get(b.id).rank).slice(0, 6);
+  for (const n of top) { const right = n.x > 760; blabel(shortTitle(n.title), n.x + (right ? -11 : 11), n.y + 4 * k, `600 ${Math.round(12.5 * k)}px Sora, sans-serif`, T.text, right ? 'right' : 'left'); }
+}
+
+/* light up a set of notes; results: [{path, in_context}] in rank order */
+function brainLight(results, mocTitles = [], clear = true) {
+  const now = performance.now();
+  if (clear) { BR.lit.clear(); BR.pulses = []; }
+  BR.focus = true;
+  const mocs = [...BR.nodes.values()].filter(n => n.moc);
+  mocs.forEach((m, i) => { if (mocTitles.includes(m.topic)) BR.lit.set(m.id, {s: 'moc', at: now + (reduceMotion ? 0 : 500), scan: now + i * 90}); });
+  results.forEach((x, i) => {
+    const n = BR.nodes.get(x.path); if (!n) return;
+    const start = now + (reduceMotion ? 0 : 450 + i * 90);
+    BR.lit.set(n.id, {s: x.in_context === false ? 'over' : 'in', at: start + (reduceMotion ? 0 : 450), rank: i});
+    if (n.home && n.home !== n.id && !reduceMotion) {
+      BR.pulses.push({a: n.home, b: n.id, start, dur: 450});
+      BR.lit.set(n.home, BR.lit.get(n.home) || {s: 'moc', at: start + 450});
+    }
+  });
+}
+function brainUnfocus() { BR.lit.clear(); BR.pulses = []; BR.focus = false; }
+
+const btip = $('#br-tip');
+function brainPick(ev) {
+  const r = bcv.getBoundingClientRect(), x = (ev.clientX - r.left) / BR.S, y = (ev.clientY - r.top) / BR.S;
+  let best = null, bd = 22 * 22;
+  for (const n of BR.nodes.values()) { const d = (n.x - x) ** 2 + (n.y - y) ** 2; if (d < bd) { bd = d; best = n; } }
+  return best;
+}
+bcv.addEventListener('pointermove', ev => {
+  if (ev.pointerType !== 'mouse') return;
+  const n = BR.hover = brainPick(ev);
+  if (!n) { btip.hidden = true; return; }
+  btip.innerHTML = `<b>${esc(n.moc ? n.topic + ' (topic)' : n.title)}</b><span>${esc(n.id)} · ${fmtNum(n.chars)} chars</span>${esc(n.snippet || '')}`;
+  btip.hidden = false;
+  const host = bcv.parentElement.getBoundingClientRect();
+  let tx = ev.clientX - host.left + 14, ty = ev.clientY - host.top + 14;
+  if (tx + 260 > host.width) tx = Math.max(8, ev.clientX - host.left - 264);
+  if (ty + btip.offsetHeight > host.height - 40) ty = Math.max(8, ev.clientY - host.top - btip.offsetHeight - 14);
+  btip.style.left = tx + 'px'; btip.style.top = ty + 'px';
+});
+bcv.addEventListener('pointerleave', () => { BR.hover = null; btip.hidden = true; });
+bcv.addEventListener('click', ev => {
+  const n = brainPick(ev);
+  if (n) openNote(n.id); else if (BR.focus) brainUnfocus();
+});
+
+/* ---------- panels */
+document.querySelectorAll('[data-btab]').forEach(b => b.onclick = () => brainTabTo(b.dataset.btab));
+function brainTabTo(t) {
+  document.querySelectorAll('[data-btab]').forEach(b => b.setAttribute('aria-selected', b.dataset.btab === t));
+  document.querySelectorAll('[data-bpane]').forEach(p => p.hidden = p.dataset.bpane !== t);
+}
+
+function renderBrain(d) {
+  brainData = d;
+  layoutBrain(d.graph);
+  const notes = d.graph.nodes.filter(n => !n.moc).length, topics = d.graph.nodes.length - notes;
+  $('#br-stats').textContent = `${notes} memor${notes === 1 ? 'y' : 'ies'} in ${topics} topic${topics === 1 ? '' : 's'}`;
+  const chip = $('#br-mcp-chip');
+  chip.textContent = d.mcp ? 'LLMs connected (MCP)' : 'MCP off'; chip.className = 'chip' + (d.mcp ? ' on' : '');
+  $('#br-empty').hidden = notes > 0;
+  $('#br-topics').innerHTML = d.graph.topics.map(t => `<option value="${esc(t)}">`).join('');
+  $('#br-inbox-n').textContent = d.inbox.length ? `(${d.inbox.length})` : '';
+  renderDrafts(d);
+  renderActivity(d);
+  const host = DEMO ? 'http://<hub-ip>:8484' : location.origin;
+  $('#br-mcp').innerHTML = d.mcp
+    ? `Your models reach this brain at <code>${esc(host)}/mcp</code> with the token from <code>brain.mcp_token</code>. In Open WebUI: Admin Settings → External Tools → add an <strong>MCP (Streamable HTTP)</strong> server with that URL and a Bearer token.`
+    : 'To let your models recall and propose memories, set <code>brain.mcp_token</code> in <code>config.yaml</code> and restart the hub. Then add <code>http://&lt;hub-ip&gt;:8484/mcp</code> in Open WebUI under Admin Settings → External Tools.';
+  // light up what an LLM just recalled
+  const newest = d.activity[0]?.t ?? 0;
+  if (lastAct !== null) {
+    const fresh = d.activity.filter(a => a.t > lastAct && a.source === 'mcp' && a.notes.length);
+    if (fresh.length) brainLight(fresh[0].notes.map(path => ({path, in_context: true})));
+  }
+  lastAct = Math.max(lastAct ?? 0, newest);
+}
+
+const editing = new Set();
+function renderDrafts(d) {
+  const box = $('#br-drafts');
+  const sig = JSON.stringify(d.inbox.map(i => i.id));
+  if (box._sig === sig || editing.size) return;
+  box._sig = sig;
+  box.innerHTML = d.inbox.length ? d.inbox.map(it => `
+    <div class="draft" data-id="${esc(it.id)}">
+      <div class="draft-top"><span>From ${esc(it.source)}, ${esc(fmtAgo(it.created))}</span>${it.updates_existing ? '<span class="tag meas">Adds to an existing note</span>' : ''}</div>
+      <input class="field" name="title" value="${esc(it.title)}" aria-label="Title" maxlength="120">
+      <textarea class="field" name="content" rows="4" aria-label="Content">${esc(it.content)}</textarea>
+      <input class="field" name="topic" value="${esc(it.topic)}" placeholder="Topic" aria-label="Topic" list="br-topics" maxlength="60">
+      <input class="field" name="links" value="${esc(it.links.join(', '))}" placeholder="Related notes, comma separated" aria-label="Related notes">
+      <div class="acts"><button class="btn" data-draft="discard">Discard</button><button class="btn primary" data-draft="approve">Approve</button></div>
+    </div>`).join('') : '<p class="note">Nothing to review. When a model calls <strong>save_memory</strong>, its draft waits here until you approve it.</p>';
+}
+$('#br-drafts').addEventListener('focusin', e => { const dr = e.target.closest('.draft'); if (dr) editing.add(dr.dataset.id); });
+$('#br-drafts').addEventListener('focusout', e => { const dr = e.target.closest('.draft'); if (dr && !dr.contains(e.relatedTarget)) editing.delete(dr.dataset.id); });
+$('#br-drafts').addEventListener('click', async e => {
+  const btn = e.target.closest('button[data-draft]'); if (!btn) return;
+  const dr = btn.closest('.draft'), id = dr.dataset.id, act = btn.dataset.draft;
+  const val = n => dr.querySelector(`[name="${n}"]`).value;
+  const body = act === 'approve' ? {title: val('title'), content: val('content'), topic: val('topic'),
+    links: val('links').split(',').map(s => s.trim()).filter(Boolean)} : {};
+  dr.querySelectorAll('button').forEach(b => b.disabled = true);
+  try {
+    const r = await bapi.inbox(id, act, body);
+    editing.delete(id);
+    toast(act === 'approve' ? `Remembered "${r.title}"` : `Discarded "${r.discarded}"`);
+    await refreshBrain();
+    if (act === 'approve' && BR.nodes.get(r.saved)) { BR.nodes.get(r.saved).born = performance.now(); brainLight([{path: r.saved, in_context: true}]); }
+  } catch (err) {
+    toast(`Couldn't ${act}: ${err.message}`, true);
+    dr.querySelectorAll('button').forEach(b => b.disabled = false);
+  }
+});
+$('#br-add-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = e.target, body = {title: f.title.value, topic: f.topic.value, content: f.content.value};
+  try {
+    const r = await bapi.add(body);
+    f.reset(); toast(`Saved "${r.title}"`);
+    await refreshBrain();
+    if (BR.nodes.get(r.saved)) { BR.nodes.get(r.saved).born = performance.now(); brainLight([{path: r.saved, in_context: true}]); }
+  } catch (err) { toast(`Couldn't save: ${err.message}`, true); }
+});
+
+function renderActivity(d) {
+  const ul = $('#br-act');
+  ul.innerHTML = d.activity.length ? d.activity.map((a, i) => `<li><time>${esc(fmtAgo(a.t))}</time><span>${a.source === 'mcp' ? '<span class="llm">LLM</span>' : ''}${esc(a.text)}${a.notes.length ? `<button data-act-i="${i}">Show ${a.notes.length}</button>` : ''}</span></li>`).join('')
+    : '<li><time></time><span class="note">Recalls, saves and reviews show up here, including what your models look up.</span></li>';
+}
+$('#br-act').addEventListener('click', e => {
+  const b = e.target.closest('button[data-act-i]'); if (!b) return;
+  brainLight(brainData.activity[+b.dataset.actI].notes.map(path => ({path, in_context: true})));
+});
+
+/* ---------- recall */
+function recallLog(lines) {
+  const ol = $('#br-log'); ol.innerHTML = '';
+  lines.forEach(([step, text], i) => setTimeout(() => {
+    const li = document.createElement('li'); li.innerHTML = `<b>${esc(step)}</b><span>${esc(text)}</span>`; ol.appendChild(li);
+  }, reduceMotion ? 0 : i * 260));
+}
+async function brainRecall(q) {
+  q = q.trim(); if (!q || brainBusy) return;
+  brainBusy = true;
+  try {
+    const r = await bapi.recall(q);
+    const inCtx = r.results.filter(x => x.in_context), viaMoc = r.results.filter(x => x.via === 'moc').length;
+    recallLog([
+      ['scan', `Read ${brainData?.graph.topics.length ?? 0} topic maps for: ${r.keywords.join(', ') || '(no keywords)'}`],
+      ['topics', r.mocs.length ? `Matched ${r.mocs.join(', ')}` : 'No topic matched'],
+      ['links', `Followed topic links: ${viaMoc} note${viaMoc === 1 ? '' : 's'}`],
+      ['search', `Keyword search across the vault: ${r.results.length - viaMoc} more`],
+      ['budget', `${fmtNum(r.used)} chars loaded${r.results.length - inCtx.length ? `, ${r.results.length - inCtx.length} left out to stay under ${fmtNum(r.budget)}` : ''}`],
+    ]);
+    $('#br-budget-n').textContent = `${fmtNum(r.used)} / ${fmtNum(r.budget)} chars`;
+    $('#br-bar').innerHTML = inCtx.map(x => `<i style="width:${x.chars / r.budget * 100}%" title="${esc(x.title)}"></i>`).join('');
+    $('#br-res').innerHTML = r.results.length ? r.results.map(x => `
+      <button data-path="${esc(x.path)}" class="${x.in_context ? '' : 'over'}"><span class="via ${x.via}">${x.via === 'moc' ? 'Topic' : 'Search'}</span>
+        <span class="rt">${esc(x.title)}</span><span class="rc">${fmtNum(x.chars)}${x.in_context ? '' : ' · left out'}</span><span class="rs">${esc(x.snippet)}</span></button>`).join('')
+      : '<p class="note">Nothing in memory matches that yet.</p>';
+    brainLight(r.results, r.mocs);
+  } catch (err) { toast(`Couldn't recall: ${err.message}`, true); }
+  finally { brainBusy = false; }
+}
+$('#br-recall-form').addEventListener('submit', e => { e.preventDefault(); brainRecall($('#br-q').value); });
+$('#br-res').addEventListener('click', e => { const b = e.target.closest('button[data-path]'); if (b) openNote(b.dataset.path); });
+
+/* ---------- note viewer */
+const noteDlg = $('#note-dlg');
+async function openNote(ref) {
+  try {
+    const n = await bapi.note(ref);
+    $('#note-title').textContent = n.is_moc ? `${n.topic} (topic)` : n.title;
+    const m = n.meta || {};
+    $('#note-meta').textContent = [n.path, m.source && `from ${m.source}`, m.created?.replace('T', ' ')].filter(Boolean).join(' · ');
+    $('#note-body').innerHTML = md(n.body).replace(/\[\[([^\]|#]+)(?:[^\]]*)\]\]/g, (_, t) => `<a href="#" data-note="${t}">${t}</a>`) || '<p class="note">This note is empty.</p>';
+    if (!noteDlg.open) noteDlg.showModal();
+    $('#note-body').scrollTop = 0;
+    if (!n.is_moc && BR.nodes.get(n.path)) brainLight([{path: n.path, in_context: true}]);
+  } catch (err) { toast(`Couldn't open the note: ${err.message}`, true); }
+}
+$('#note-body').addEventListener('click', e => { const a = e.target.closest('a[data-note]'); if (a) { e.preventDefault(); openNote(a.dataset.note); } });
+$('#note-close').onclick = () => noteDlg.close();
+
+/* ---------- lifecycle */
+async function refreshBrain() {
+  try { renderBrain(await bapi.get()); }
+  catch (err) {
+    $('#br-stats').textContent = '';
+    $('#br-empty').hidden = false;
+    $('#br-empty').innerHTML = `<strong>Brain unavailable</strong>${esc(err.message)}`;
+  }
+}
+function brainOpen() {
+  refreshBrain();
+  clearInterval(brainTimer);
+  brainTimer = setInterval(refreshBrain, 4000);
+  brainLayer();
+  if (!BR.running) { BR.running = true; requestAnimationFrame(brainFrame); }
+}
+function brainClose() { clearInterval(brainTimer); brainTimer = null; }
+
+/* ---------- demo brain */
+const demoBrain = DEMO ? (() => {
+  const notes = [
+    ['Homelab', 'Nightly backups run at 2am', 'Restic backs up every Docker volume on the home server to the NAS at 2am. Check with `restic snapshots`.', ['Restic retention policy']],
+    ['Homelab', 'Restic retention policy', 'Keep 7 daily, 4 weekly and 6 monthly snapshots. Prune runs Sundays.', ['Nightly backups run at 2am']],
+    ['Homelab', 'Open WebUI runs on the AI PC', 'Open WebUI and Ollama run on the Nexus AI PC. Nexus is qwen3:8b with 32K context; Nexus Coder is qwen3-coder:30b.', ['GPU memory limits']],
+    ['Homelab', 'GPU memory limits', 'The RTX 4070 has 12 GB of VRAM. The 30B coder spills into system RAM, so keep its context at 16K.', ['Open WebUI runs on the AI PC']],
+    ['Homelab', 'Pi-hole is the only DNS server', 'Every device uses the Raspberry Pi for DNS. If the Pi is down, nothing resolves.', []],
+    ['Coding', 'Prefer FastAPI for small services', 'Small internal services use FastAPI with httpx. Keep them in one file until they pass about 1,000 lines.', ['Tests fake every outside system']],
+    ['Coding', 'Tests fake every outside system', 'NexusLab tests mock Docker, Ollama, Pi-hole and Discord so they run anywhere.', []],
+    ['Coding', 'Commit message style', 'Subject in the imperative mood, under 60 characters. The body explains why.', []],
+    ['Preferences', 'Prefers short answers', 'Kevin prefers short, direct answers with commands he can paste.', []],
+    ['Preferences', 'Uses an iPhone for most things', 'Most checks happen from the iPhone over Tailscale, so pages must work at phone width.', ['Open WebUI runs on the AI PC']],
+    ['Preferences', 'Time zone is Pacific', 'Kevin is in Los Angeles. Times should be in Pacific time.', []],
+  ];
+  let inbox = [
+    {id: 'a1b2c3d4e5f6', created: Date.now() / 1000 - 600, source: 'LLM via MCP', title: 'Uptime Kuma alerts go to Discord', content: 'Uptime Kuma on the mini PC posts to the #alerts channel in Kevin\'s private Discord.', topic: 'Homelab', links: ['Pi-hole is the only DNS server'], updates_existing: false},
+    {id: 'f6e5d4c3b2a1', created: Date.now() / 1000 - 4000, source: 'LLM via MCP', title: 'Prefers short answers', content: 'Also: skip the preamble and lead with the command.', topic: 'Preferences', links: [], updates_existing: true},
+  ];
+  const activity = [{t: Date.now() / 1000 - 300, kind: 'recall', source: 'mcp', text: 'LLM recalled "gpu vram context"', notes: ['Memory/GPU memory limits.md', 'Memory/Open WebUI runs on the AI PC.md']}];
+  const path = t => `Memory/${t}.md`, mocPath = t => `MOCs/${t} MOC.md`;
+  const all = () => {
+    const nodes = [], links = [];
+    const topics = [...new Set(notes.map(n => n[0]))];
+    for (const t of topics) nodes.push({id: mocPath(t), title: `${t} MOC`, topic: t, moc: true, home: mocPath(t), chars: 300, snippet: `Map of content for ${t}.`});
+    for (const [t, title, body, rel] of notes) {
+      nodes.push({id: path(title), title, topic: title, moc: false, home: mocPath(t), chars: body.length, snippet: body});
+      links.push([mocPath(t), path(title)]);
+      for (const r of rel) if (notes.some(n => n[1] === r)) links.push([path(title), path(r)].sort());
+    }
+    return {nodes, links: [...new Set(links.map(l => l.join('\n')))].map(s => s.split('\n')), topics};
+  };
+  const toks = q => [...new Set(q.toLowerCase().match(/[a-z0-9-]{3,}/g) || [])].filter(w => !['the', 'and', 'what', 'how', 'does', 'about', 'for', 'with', 'should'].includes(w)).map(w => w.length > 4 && w.endsWith('s') ? w.slice(0, -1) : w);
+  return {
+    get: () => ({enabled: true, mcp: true, owner: 'Kevin', recall_chars: 8000, graph: all(), inbox: inbox.map(i => ({...i})), activity: [...activity].reverse()}),
+    inboxCount: () => inbox.length,
+    recall(q) {
+      const k = toks(q), hit = s => k.filter(t => s.toLowerCase().includes(t)).length;
+      const topics = [...new Set(notes.map(n => n[0]))].filter(t => hit(t + ' ' + notes.filter(n => n[0] === t).map(n => n[1]).join(' ')));
+      const res = notes.map(([t, title, body]) => ({t, title, body, s: hit(title) * 3 + hit(body)})).filter(x => x.s).sort((a, b) => b.s - a.s);
+      let used = 0;
+      const results = res.map(x => { const fits = used + x.body.length <= 8000; if (fits) used += x.body.length;
+        return {path: path(x.title), title: x.title, via: topics.includes(x.t) ? 'moc' : 'search', chars: x.body.length, in_context: fits, snippet: x.body}; });
+      activity.push({t: Date.now() / 1000, kind: 'recall', source: 'ui', text: `You recalled "${q}"`, notes: results.map(r => r.path)});
+      return {query: q, keywords: k, mocs: topics, used, budget: 8000, results};
+    },
+    note(ref) {
+      const n = notes.find(x => path(x[1]) === ref || x[1].toLowerCase() === String(ref).toLowerCase());
+      if (n) return {path: path(n[1]), title: n[1], topic: n[1], body: n[2] + (n[3].length ? '\n\nRelated: ' + n[3].map(r => `[[${r}]]`).join(', ') : ''), links: n[3], meta: {source: 'You', created: '2026-10-01T09:00'}, is_moc: false};
+      const t = String(ref).replace(/^MOCs\/| MOC(\.md)?$/g, '');
+      return {path: mocPath(t), title: `${t} MOC`, topic: t, body: notes.filter(x => x[0] === t).map(x => `- [[${x[1]}]]`).join('\n'), links: [], meta: {}, is_moc: true};
+    },
+    inbox(id, act, body) {
+      const it = inbox.find(i => i.id === id); if (!it) throw new Error('That draft is gone');
+      inbox = inbox.filter(i => i !== it);
+      if (act === 'discard') return {discarded: it.title};
+      const title = (body.title || it.title).trim();
+      const ex = notes.find(n => n[1] === title);
+      if (ex) ex[2] += '\n\n' + (body.content || it.content);
+      else notes.push([body.topic || it.topic || 'Unsorted', title, body.content || it.content, body.links || it.links]);
+      return {saved: path(title), title};
+    },
+    add(body) {
+      if (!body.title?.trim() || !body.content?.trim()) throw new Error('A note needs a title and content');
+      notes.push([body.topic?.trim() || 'Unsorted', body.title.trim(), body.content.trim(), []]);
+      return {saved: path(body.title.trim()), title: body.title.trim()};
+    },
+  };
+})() : null;
+
 $('#demo-tag').hidden = !DEMO;
 setInterval(tickUpdated, 1000);
-if (location.hash === '#chat' || location.hash === '#power') setTimeout(() => setView(location.hash.slice(1)), 0);
+if (['#chat', '#power', '#brain'].includes(location.hash)) setTimeout(() => setView(location.hash.slice(1)), 0);
 poll();
 })();
 </script>

@@ -79,3 +79,14 @@ chat:
   owner: ""                       # your name, so the assistant says "Kevin's homelab"
   model: ""                       # default model; empty = whatever is loaded
   num_ctx: 8192                   # context window sent to Ollama
+
+# Brain tab: long-term memory for your LLMs, kept as an Obsidian vault.
+# Models propose memories over MCP; nothing is saved until you approve it.
+# Setup with Open WebUI: docs/BRAIN.md
+brain:
+  enabled: true
+  vault: ""                       # empty = data/vault next to state.json; or a path to an existing vault
+  mcp_token: ""                   # empty = MCP off. Make one with: openssl rand -hex 24
+  recall_chars: 8000              # most note text one recall hands a model (fits an 8K-32K context)
+  notify_discord: true            # post to Discord when a model proposes a memory
+  # mcp_allowed_origins: []       # only for browser-based MCP clients; Open WebUI doesn't need this

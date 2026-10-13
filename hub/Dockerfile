@@ -3,7 +3,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY app.py .
+COPY app.py brain.py ./
 COPY static ./static
 EXPOSE 8484
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \

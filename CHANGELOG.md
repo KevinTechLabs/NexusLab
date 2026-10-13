@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.0
+
+### Added
+- **Brain tab.** Long-term memory for your LLMs, kept as a plain Obsidian vault (`hub/data/vault` by default) and drawn as a brain: each topic is a lobe, each memory a neuron. Ask a question on the Recall panel to watch it read topic maps, follow their links, fall back to a keyword search and fit the best notes into a context budget.
+- **Review before saving.** Models propose memories; they wait in the Brain's Inbox until you edit, approve or discard them. A proposal for an existing title adds to that note. You can also add memories yourself.
+- **MCP server at `/mcp`** (Streamable HTTP) with `search_memory`, `read_memory`, `list_memory_topics` and `save_memory`, so Open WebUI and other MCP clients can use the Brain. Protected by its own `brain.mcp_token`; off until you set one.
+- The Activity panel shows what your models looked up and lights those notes on the brain.
+- Optional Discord message when a model proposes a memory (`brain.notify_discord`).
+- `docs/BRAIN.md` covers connecting Open WebUI and opening the vault in Obsidian.
+
 ## 1.2.0
 
 ### Added

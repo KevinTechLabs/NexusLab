@@ -92,6 +92,19 @@ Alerts don't fire for actions you take from the dashboard. Stopping a container 
 | `model` | *(empty)* | Default model. Empty uses whichever model is loaded, or the first installed |
 | `num_ctx` | `8192` | Context window sent to Ollama. Raise it if answers seem to ignore data |
 
+### `brain`
+
+Long-term memory for your LLMs. See [BRAIN.md](BRAIN.md) for connecting Open WebUI.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `enabled` | `true` | Show the Brain tab and serve the memory API |
+| `vault` | `data/vault` | Folder holding the Obsidian vault. Point it at an existing vault to use that instead |
+| `mcp_token` | *(empty)* | Bearer token your LLM clients use at `/mcp`. Empty turns MCP off |
+| `recall_chars` | `8000` | Most note text a single recall returns, so small models aren't flooded |
+| `notify_discord` | `true` | Post to Discord when a model proposes a memory (needs `alerts.discord_webhook`) |
+| `mcp_allowed_origins` | `[]` | Browser origins allowed to call `/mcp`. Server-side clients like Open WebUI send none and don't need this |
+
 ## Agent: `/etc/nexuslab-agent.env`
 
 | Variable | Default | Meaning |
@@ -107,5 +120,7 @@ Alerts don't fire for actions you take from the dashboard. Stopping a container 
 | `NEXUSLAB_OLLAMA_URL` | `http://127.0.0.1:11434` | Where to find Ollama. `off` disables it |
 
 ## Files the hub writes
+
+`hub/data/vault/` is the Brain's Obsidian vault (unless `brain.vault` points elsewhere). Back it up; it's your models' memory. Drafts waiting for review are in its hidden `.nexus/inbox/` folder.
 
 `hub/data/state.json` stores each machine's learned MAC address and which machines you turned off on purpose, so both survive hub restarts. It's safe to delete; it's rebuilt as machines report in.

@@ -19,6 +19,12 @@ When `auth.password` is set, every endpoint except the login and static icons ne
 | `POST` | `/api/chat` | `{"model", "messages": [{role, content}]}` → streams Ollama's reply as NDJSON, with live status included |
 | `POST` | `/api/energy/rate` | `{"rate": 0.32}` sets the electricity rate per kWh |
 | `GET` | `/api/summary/send` | Posts a daily summary to Discord now (for testing) |
+| `GET` | `/api/brain` | The Brain: notes and topics as a graph, drafts waiting for review, recent activity |
+| `POST` | `/api/brain/recall` | `{"query"}` → notes that match, which ones fit the context budget, and why each matched |
+| `GET` | `/api/brain/note?path=` | One note in full, by vault path or title |
+| `POST` | `/api/brain/notes` | `{"title", "content", "topic"}` saves a memory directly |
+| `POST` | `/api/brain/inbox/{id}/{action}` | `approve` (optional edits: `title`, `content`, `topic`, `links`) or `discard` a model's draft |
+| `POST` | `/mcp` | MCP server (Streamable HTTP, JSON replies) for LLM clients. Uses `Authorization: Bearer <brain.mcp_token>`, not the session cookie. Tools: `search_memory`, `read_memory`, `list_memory_topics`, `save_memory` |
 | `GET` | `/manifest.webmanifest` | Web app manifest for "Add to Home Screen" |
 
 ## Agent (port 9101)
